@@ -19,13 +19,13 @@ firebase.initializeApp(firebaseConfig);
 const firebaseDB = firebase.database();
 let firebaseReady = false;
 let syncInProgress = false;
-let isLocalWrite = false; // 내가 쓴 변경인지 추적
-let lastSyncHash = ''; // 마지막 동기화 해시 (중복 방지)
+let isLocalWrite = false;
+let firebaseInitDone = false; // Firebase 초기 로드 완료 여부
 
 // ============================
 // 데이터 관리 (localStorage + Firebase 동기화)
 // ============================
-const SYNC_KEYS = ['events', 'schedules', 'yearlyThemes', 'aboutData', 'musicData', 'homeData', 'categories', 'initialized'];
+const SYNC_KEYS = ['events', 'schedules', 'yearlyThemes', 'aboutData', 'musicData', 'homeData', 'categories'];
 
 const DB = {
     get(key, fallback = []) {
@@ -36,13 +36,14 @@ const DB = {
     },
     set(key, value) {
         localStorage.setItem('jamjaemi_' + key, JSON.stringify(value));
+        // Firebase에 즉시 저장 (동기화의 핵심)
         if (firebaseReady && !syncInProgress) {
             isLocalWrite = true;
             firebaseDB.ref('jamjaemi/' + key).set(value).then(() => {
-                console.log('Firebase 저장 완료:', key);
-                isLocalWrite = false;
+                console.log('[DB.set] Firebase 저장 완료:', key);
             }).catch(err => {
-                console.warn('Firebase 저장 실패:', err);
+                console.warn('[DB.set] Firebase 저장 실패:', key, err);
+            }).finally(() => {
                 isLocalWrite = false;
             });
         }
@@ -52,96 +53,116 @@ const DB = {
         if (firebaseReady && !syncInProgress) {
             isLocalWrite = true;
             firebaseDB.ref('jamjaemi/' + key).remove().then(() => {
-                isLocalWrite = false;
+                console.log('[DB.remove] Firebase 삭제 완료:', key);
             }).catch(err => {
-                console.warn('Firebase 삭제 실패:', err);
+                console.warn('[DB.remove] Firebase 삭제 실패:', key, err);
+            }).finally(() => {
                 isLocalWrite = false;
             });
         }
     }
 };
 
-// Firebase 동기화
+// ============================
+// Firebase 동기화 (핵심 로직)
+// ============================
 function initFirebaseSync() {
     const ref = firebaseDB.ref('jamjaemi');
 
-    // 1단계: 초기 데이터 로드
+    // ★ 1단계: Firebase에서 데이터 가져오기 (최우선)
     ref.once('value').then(snapshot => {
-        const data = snapshot.val();
-        if (data) {
-            syncInProgress = true;
-            Object.keys(data).forEach(key => {
-                localStorage.setItem('jamjaemi_' + key, JSON.stringify(data[key]));
-            });
-            lastSyncHash = JSON.stringify(data).length.toString();
-            syncInProgress = false;
-            console.log('Firebase → localStorage 초기 동기화 완료');
-            refreshCurrentPage();
-        } else {
-            // Firebase에 데이터 없으면 로컬 데이터 업로드
-            uploadAllToFirebase();
-        }
+        const firebaseData = snapshot.val();
         firebaseReady = true;
 
-        // 2단계: 실시간 변경 리스너 (개별 키 단위)
+        if (firebaseData && Object.keys(firebaseData).length > 0) {
+            // ★ Firebase에 데이터가 있음 → 무조건 Firebase 데이터를 사용
+            console.log('[Sync] Firebase 데이터 발견, localStorage 덮어쓰기');
+            syncInProgress = true;
+            SYNC_KEYS.forEach(key => {
+                if (firebaseData[key] !== undefined && firebaseData[key] !== null) {
+                    localStorage.setItem('jamjaemi_' + key, JSON.stringify(firebaseData[key]));
+                }
+            });
+            syncInProgress = false;
+
+            // ★ Firebase 데이터로 전체 페이지 다시 렌더링
+            refreshAllPages();
+            initMusicPlayer();
+        } else {
+            // ★ Firebase에 데이터 없음 → 로컬 데이터(샘플 포함)를 Firebase로 업로드
+            console.log('[Sync] Firebase 비어있음, 로컬 데이터 업로드');
+            uploadAllToFirebase();
+        }
+
+        firebaseInitDone = true;
+
+        // ★ 2단계: 실시간 변경 감지 리스너 (다른 기기의 변경 수신)
         SYNC_KEYS.forEach(key => {
             firebaseDB.ref('jamjaemi/' + key).on('value', snapshot => {
                 // 내가 방금 쓴 변경이면 무시
-                if (isLocalWrite || syncInProgress) return;
+                if (isLocalWrite || syncInProgress || !firebaseInitDone) return;
 
                 const newVal = snapshot.val();
-                if (newVal === null) return;
+                if (newVal === null || newVal === undefined) return;
 
-                // 현재 로컬 값과 비교
-                const localRaw = localStorage.getItem('jamjaemi_' + key);
                 const newRaw = JSON.stringify(newVal);
-                if (localRaw === newRaw) return; // 동일하면 무시
+                const localRaw = localStorage.getItem('jamjaemi_' + key);
 
-                console.log('Firebase 변경 감지:', key);
+                // 로컬과 다를 때만 갱신
+                if (localRaw === newRaw) return;
+
+                console.log('[Sync] 실시간 변경 감지:', key);
                 syncInProgress = true;
                 localStorage.setItem('jamjaemi_' + key, newRaw);
                 syncInProgress = false;
 
-                // 페이지 새로고침
-                refreshCurrentPage();
+                refreshAllPages();
             });
         });
+
+        console.log('[Sync] Firebase 동기화 초기화 완료');
+
     }).catch(err => {
-        console.warn('Firebase 연결 실패, 로컬 모드로 동작:', err);
+        console.warn('[Sync] Firebase 연결 실패, 오프라인 모드:', err);
         firebaseReady = false;
+        firebaseInitDone = true;
     });
 }
 
 function uploadAllToFirebase() {
-    const data = {};
+    const updates = {};
     SYNC_KEYS.forEach(key => {
         const raw = localStorage.getItem('jamjaemi_' + key);
         if (raw) {
-            try { data[key] = JSON.parse(raw); } catch {}
+            try { updates[key] = JSON.parse(raw); } catch {}
         }
     });
-    if (Object.keys(data).length > 0) {
+    if (Object.keys(updates).length > 0) {
         isLocalWrite = true;
-        firebaseDB.ref('jamjaemi').set(data).then(() => {
-            console.log('localStorage → Firebase 업로드 완료');
-            isLocalWrite = false;
+        firebaseDB.ref('jamjaemi').update(updates).then(() => {
+            console.log('[Sync] 로컬 → Firebase 업로드 완료');
         }).catch(err => {
-            console.warn('Firebase 업로드 실패:', err);
+            console.warn('[Sync] Firebase 업로드 실패:', err);
+        }).finally(() => {
             isLocalWrite = false;
         });
     }
 }
 
-function refreshCurrentPage() {
+// 전체 페이지 새로고침
+function refreshAllPages() {
     try {
         if (currentPage === 'home') loadHomePage();
         if (currentPage === 'about') loadAboutPage();
         if (currentPage === 'events') loadEventsTimeline();
         if (currentPage === 'schedule') { loadYearlySchedule(); loadMonthlyCalendar(); }
     } catch (e) {
-        console.warn('페이지 새로고침 중 오류:', e);
+        console.warn('[Sync] 페이지 새로고침 중 오류:', e);
     }
 }
+
+// 하위 호환용 별칭
+function refreshCurrentPage() { refreshAllPages(); }
 
 // ============================
 // 이미지 압축 함수
@@ -223,10 +244,11 @@ function getHomeData() {
 }
 
 // ============================
-// 초기 데이터 (샘플)
+// 초기 데이터 (샘플) - localStorage 전용, Firebase에는 올리지 않음
 // ============================
 function initSampleData() {
-    if (DB.get('initialized', false)) return;
+    // 로컬에 이미 데이터가 있으면 skip
+    if (localStorage.getItem('jamjaemi_events')) return;
 
     const sampleEvents = [
         { id: 1, name: '봄맞이 소풍', date: '2026-04-15', category: '봄', location: '서울숲 공원', desc: '따뜻한 봄을 맞아 서울숲에서 즐거운 소풍을 다녀왔습니다.', photos: [] },
@@ -285,11 +307,11 @@ function initSampleData() {
         ]
     };
 
-    DB.set('events', sampleEvents);
-    DB.set('schedules', sampleSchedules);
-    DB.set('yearlyThemes', sampleThemes);
-    DB.set('aboutData', defaultAboutData);
-    DB.set('initialized', true);
+    // ★ localStorage에만 저장 (Firebase에는 initFirebaseSync가 판단)
+    localStorage.setItem('jamjaemi_events', JSON.stringify(sampleEvents));
+    localStorage.setItem('jamjaemi_schedules', JSON.stringify(sampleSchedules));
+    localStorage.setItem('jamjaemi_yearlyThemes', JSON.stringify(sampleThemes));
+    localStorage.setItem('jamjaemi_aboutData', JSON.stringify(defaultAboutData));
 }
 
 // ============================
@@ -1835,12 +1857,19 @@ particleStyle.textContent = `@keyframes particleFloat { 0%, 100% { transform: tr
 document.head.appendChild(particleStyle);
 
 // ============================
-// 초기화
+// 초기화 (★ 순서가 중요!)
 // ============================
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. 로컬에 데이터 없으면 샘플 데이터 임시 세팅 (화면 빈 상태 방지)
     initSampleData();
+
+    // 2. 파티클 & 홈페이지 기본 렌더링 (샘플 또는 기존 로컬 데이터로)
     createParticles();
     loadHomePage();
     initMusicPlayer();
+
+    // 3. ★ Firebase 동기화 시작 (비동기)
+    //    → Firebase에 데이터 있으면 로컬 덮어쓰기 + 화면 갱신
+    //    → Firebase에 없으면 로컬 데이터를 Firebase로 업로드
     initFirebaseSync();
 });
