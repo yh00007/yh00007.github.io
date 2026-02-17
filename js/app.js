@@ -19,10 +19,14 @@ firebase.initializeApp(firebaseConfig);
 const firebaseDB = firebase.database();
 let firebaseReady = false;
 let syncInProgress = false;
+let isLocalWrite = false; // 내가 쓴 변경인지 추적
+let lastSyncHash = ''; // 마지막 동기화 해시 (중복 방지)
 
 // ============================
 // 데이터 관리 (localStorage + Firebase 동기화)
 // ============================
+const SYNC_KEYS = ['events', 'schedules', 'yearlyThemes', 'aboutData', 'musicData', 'homeData', 'categories', 'initialized'];
+
 const DB = {
     get(key, fallback = []) {
         try {
@@ -33,16 +37,25 @@ const DB = {
     set(key, value) {
         localStorage.setItem('jamjaemi_' + key, JSON.stringify(value));
         if (firebaseReady && !syncInProgress) {
-            firebaseDB.ref('jamjaemi/' + key).set(value).catch(err => {
+            isLocalWrite = true;
+            firebaseDB.ref('jamjaemi/' + key).set(value).then(() => {
+                console.log('Firebase 저장 완료:', key);
+                isLocalWrite = false;
+            }).catch(err => {
                 console.warn('Firebase 저장 실패:', err);
+                isLocalWrite = false;
             });
         }
     },
     remove(key) {
         localStorage.removeItem('jamjaemi_' + key);
         if (firebaseReady && !syncInProgress) {
-            firebaseDB.ref('jamjaemi/' + key).remove().catch(err => {
+            isLocalWrite = true;
+            firebaseDB.ref('jamjaemi/' + key).remove().then(() => {
+                isLocalWrite = false;
+            }).catch(err => {
                 console.warn('Firebase 삭제 실패:', err);
+                isLocalWrite = false;
             });
         }
     }
@@ -51,6 +64,8 @@ const DB = {
 // Firebase 동기화
 function initFirebaseSync() {
     const ref = firebaseDB.ref('jamjaemi');
+
+    // 1단계: 초기 데이터 로드
     ref.once('value').then(snapshot => {
         const data = snapshot.val();
         if (data) {
@@ -58,51 +73,74 @@ function initFirebaseSync() {
             Object.keys(data).forEach(key => {
                 localStorage.setItem('jamjaemi_' + key, JSON.stringify(data[key]));
             });
+            lastSyncHash = JSON.stringify(data).length.toString();
             syncInProgress = false;
-            console.log('Firebase → localStorage 동기화 완료');
+            console.log('Firebase → localStorage 초기 동기화 완료');
             refreshCurrentPage();
         } else {
+            // Firebase에 데이터 없으면 로컬 데이터 업로드
             uploadAllToFirebase();
         }
         firebaseReady = true;
+
+        // 2단계: 실시간 변경 리스너 (개별 키 단위)
+        SYNC_KEYS.forEach(key => {
+            firebaseDB.ref('jamjaemi/' + key).on('value', snapshot => {
+                // 내가 방금 쓴 변경이면 무시
+                if (isLocalWrite || syncInProgress) return;
+
+                const newVal = snapshot.val();
+                if (newVal === null) return;
+
+                // 현재 로컬 값과 비교
+                const localRaw = localStorage.getItem('jamjaemi_' + key);
+                const newRaw = JSON.stringify(newVal);
+                if (localRaw === newRaw) return; // 동일하면 무시
+
+                console.log('Firebase 변경 감지:', key);
+                syncInProgress = true;
+                localStorage.setItem('jamjaemi_' + key, newRaw);
+                syncInProgress = false;
+
+                // 페이지 새로고침
+                refreshCurrentPage();
+            });
+        });
     }).catch(err => {
         console.warn('Firebase 연결 실패, 로컬 모드로 동작:', err);
         firebaseReady = false;
     });
-
-    ref.on('value', snapshot => {
-        if (!firebaseReady) return;
-        const data = snapshot.val();
-        if (data) {
-            syncInProgress = true;
-            Object.keys(data).forEach(key => {
-                localStorage.setItem('jamjaemi_' + key, JSON.stringify(data[key]));
-            });
-            syncInProgress = false;
-            refreshCurrentPage();
-        }
-    });
 }
 
 function uploadAllToFirebase() {
-    const keys = ['events', 'schedules', 'yearlyThemes', 'aboutData', 'musicData', 'homeData', 'categories', 'initialized'];
     const data = {};
-    keys.forEach(key => {
-        const val = DB.get(key, null);
-        if (val !== null) data[key] = val;
+    SYNC_KEYS.forEach(key => {
+        const raw = localStorage.getItem('jamjaemi_' + key);
+        if (raw) {
+            try { data[key] = JSON.parse(raw); } catch {}
+        }
     });
     if (Object.keys(data).length > 0) {
+        isLocalWrite = true;
         firebaseDB.ref('jamjaemi').set(data).then(() => {
             console.log('localStorage → Firebase 업로드 완료');
-        }).catch(err => console.warn('Firebase 업로드 실패:', err));
+            isLocalWrite = false;
+        }).catch(err => {
+            console.warn('Firebase 업로드 실패:', err);
+            isLocalWrite = false;
+        });
     }
 }
 
 function refreshCurrentPage() {
-    if (currentPage === 'home') { loadHomePage(); }
-    if (currentPage === 'about') loadAboutPage();
-    if (currentPage === 'events') loadEventsTimeline();
-    if (currentPage === 'schedule') { loadYearlySchedule(); loadMonthlyCalendar(); }
+    try {
+        if (currentPage === 'home') loadHomePage();
+        if (currentPage === 'about') loadAboutPage();
+        if (currentPage === 'events') loadEventsTimeline();
+        if (currentPage === 'schedule') { loadYearlySchedule(); loadMonthlyCalendar(); }
+    } catch (e) {
+        console.warn('페이지 새로고침 중 오류:', e);
+    }
 }
 
 // ============================
@@ -1146,10 +1184,14 @@ function filterEvents(category) {
 }
 
 // ============================
-// 사진 모달
+// 사진 모달 (핀치줌 + 확대/축소)
 // ============================
 let modalPhotos = [];
 let modalPhotoIndex = 0;
+let photoZoom = { scale: 1, translateX: 0, translateY: 0 };
+let pinchState = { startDist: 0, startScale: 1 };
+let panState = { startX: 0, startY: 0, isPanning: false };
+let lastTapTime = 0;
 
 function openPhotoModal(eventId, photoIndex) {
     const events = DB.get('events');
@@ -1157,27 +1199,176 @@ function openPhotoModal(eventId, photoIndex) {
     if (!ev || !ev.photos || ev.photos.length === 0) return;
     modalPhotos = ev.photos;
     modalPhotoIndex = photoIndex;
+    resetZoom();
     updatePhotoModal();
     document.getElementById('photoModal').classList.add('show');
     document.body.style.overflow = 'hidden';
+    initPhotoZoom();
 }
 
 function updatePhotoModal() {
-    document.getElementById('modalPhoto').src = modalPhotos[modalPhotoIndex];
+    const img = document.getElementById('modalPhoto');
+    img.src = modalPhotos[modalPhotoIndex];
+    resetZoom();
+    applyZoomTransform();
     document.getElementById('photoInfo').textContent = `사진 ${modalPhotoIndex + 1} / ${modalPhotos.length}`;
     document.getElementById('photoThumbnails').innerHTML = modalPhotos.map((p, i) =>
         `<img src="${p}" class="${i === modalPhotoIndex ? 'active' : ''}" onclick="modalPhotoIndex=${i};updatePhotoModal()">`
     ).join('');
+    // 줌 컨트롤 표시
+    updateZoomControls();
+}
+
+function resetZoom() {
+    photoZoom = { scale: 1, translateX: 0, translateY: 0 };
+}
+
+function applyZoomTransform() {
+    const img = document.getElementById('modalPhoto');
+    if (!img) return;
+    img.style.transform = `translate(${photoZoom.translateX}px, ${photoZoom.translateY}px) scale(${photoZoom.scale})`;
+    img.style.cursor = photoZoom.scale > 1 ? 'grab' : 'default';
+    updateZoomControls();
+}
+
+function updateZoomControls() {
+    const zoomInfo = document.getElementById('zoomInfo');
+    if (zoomInfo) {
+        const pct = Math.round(photoZoom.scale * 100);
+        zoomInfo.textContent = pct + '%';
+        zoomInfo.style.opacity = photoZoom.scale !== 1 ? '1' : '0.5';
+    }
+}
+
+function zoomPhoto(delta) {
+    const newScale = Math.max(0.5, Math.min(5, photoZoom.scale + delta));
+    photoZoom.scale = newScale;
+    if (newScale <= 1) { photoZoom.translateX = 0; photoZoom.translateY = 0; }
+    applyZoomTransform();
+}
+
+function zoomPhotoReset() {
+    resetZoom();
+    applyZoomTransform();
+}
+
+function initPhotoZoom() {
+    const viewer = document.querySelector('.photo-viewer');
+    const img = document.getElementById('modalPhoto');
+    if (!viewer || !img) return;
+
+    // 기존 리스너 제거 후 재등록 방지
+    if (viewer._zoomInitialized) return;
+    viewer._zoomInitialized = true;
+
+    // 모바일: 핀치 줌
+    viewer.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            pinchState.startDist = Math.sqrt(dx * dx + dy * dy);
+            pinchState.startScale = photoZoom.scale;
+        } else if (e.touches.length === 1 && photoZoom.scale > 1) {
+            panState.startX = e.touches[0].clientX - photoZoom.translateX;
+            panState.startY = e.touches[0].clientY - photoZoom.translateY;
+            panState.isPanning = true;
+        }
+    }, { passive: false });
+
+    viewer.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const newScale = Math.max(0.5, Math.min(5, pinchState.startScale * (dist / pinchState.startDist)));
+            photoZoom.scale = newScale;
+            if (newScale <= 1) { photoZoom.translateX = 0; photoZoom.translateY = 0; }
+            applyZoomTransform();
+        } else if (e.touches.length === 1 && panState.isPanning && photoZoom.scale > 1) {
+            e.preventDefault();
+            photoZoom.translateX = e.touches[0].clientX - panState.startX;
+            photoZoom.translateY = e.touches[0].clientY - panState.startY;
+            applyZoomTransform();
+        }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', function(e) {
+        panState.isPanning = false;
+        // 더블 탭 줌
+        if (e.touches.length === 0 && e.changedTouches.length === 1) {
+            const now = Date.now();
+            if (now - lastTapTime < 300) {
+                e.preventDefault();
+                if (photoZoom.scale > 1) {
+                    resetZoom();
+                } else {
+                    photoZoom.scale = 2.5;
+                }
+                applyZoomTransform();
+            }
+            lastTapTime = now;
+        }
+    }, { passive: false });
+
+    // 데스크탑: 마우스 휠 줌
+    viewer.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.3 : 0.3;
+        zoomPhoto(delta);
+    }, { passive: false });
+
+    // 데스크탑: 드래그 팬
+    let mouseDown = false, mouseStartX = 0, mouseStartY = 0;
+    viewer.addEventListener('mousedown', function(e) {
+        if (photoZoom.scale > 1) {
+            mouseDown = true;
+            mouseStartX = e.clientX - photoZoom.translateX;
+            mouseStartY = e.clientY - photoZoom.translateY;
+            img.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+    viewer.addEventListener('mousemove', function(e) {
+        if (mouseDown && photoZoom.scale > 1) {
+            photoZoom.translateX = e.clientX - mouseStartX;
+            photoZoom.translateY = e.clientY - mouseStartY;
+            applyZoomTransform();
+        }
+    });
+    viewer.addEventListener('mouseup', function() { mouseDown = false; img.style.cursor = photoZoom.scale > 1 ? 'grab' : 'default'; });
+    viewer.addEventListener('mouseleave', function() { mouseDown = false; });
+
+    // 더블클릭 줌
+    viewer.addEventListener('dblclick', function(e) {
+        e.preventDefault();
+        if (photoZoom.scale > 1) {
+            resetZoom();
+        } else {
+            photoZoom.scale = 2.5;
+        }
+        applyZoomTransform();
+    });
 }
 
 function prevPhoto() { modalPhotoIndex = (modalPhotoIndex - 1 + modalPhotos.length) % modalPhotos.length; updatePhotoModal(); }
 function nextPhoto() { modalPhotoIndex = (modalPhotoIndex + 1) % modalPhotos.length; updatePhotoModal(); }
-function closePhotoModal() { document.getElementById('photoModal').classList.remove('show'); document.body.style.overflow = ''; }
+function closePhotoModal() {
+    document.getElementById('photoModal').classList.remove('show');
+    document.body.style.overflow = '';
+    resetZoom();
+    const viewer = document.querySelector('.photo-viewer');
+    if (viewer) viewer._zoomInitialized = false;
+}
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closePhotoModal();
     if (e.key === 'ArrowLeft') prevPhoto();
     if (e.key === 'ArrowRight') nextPhoto();
+    if (e.key === '+' || e.key === '=') zoomPhoto(0.3);
+    if (e.key === '-') zoomPhoto(-0.3);
+    if (e.key === '0') zoomPhotoReset();
 });
 
 // ============================
