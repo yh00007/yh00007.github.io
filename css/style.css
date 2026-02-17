@@ -311,7 +311,7 @@ body {
 
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 2rem;
 }
 
@@ -414,7 +414,7 @@ body {
 /* === 최근 행사 === */
 .recent-events-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 2rem;
 }
 
@@ -642,6 +642,133 @@ body {
     line-height: 1.8;
 }
 
+/* === 원장 소개 카드 === */
+.director-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    border: 2px solid var(--primary-light);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+    transition: var(--transition);
+    background: linear-gradient(135deg, #FFF1F5 0%, #FFFFFF 100%);
+}
+
+.director-card:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary);
+}
+
+.director-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 4px solid var(--primary-light);
+    box-shadow: 0 8px 25px rgba(255,107,157,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-light), var(--secondary-light));
+}
+
+.director-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.director-photo .director-photo-placeholder {
+    font-size: 4rem;
+    color: white;
+}
+
+.director-info {
+    flex: 1;
+}
+
+.director-info .director-name {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+}
+
+.director-info .director-role {
+    font-size: 0.95rem;
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.director-info .director-role::before {
+    content: '';
+    display: inline-block;
+    width: 30px;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 2px;
+}
+
+.director-info .director-greeting {
+    color: var(--text-light);
+    line-height: 1.8;
+    font-size: 0.95rem;
+    white-space: pre-line;
+}
+
+/* === 원장 사진 업로드 관리자 영역 === */
+.director-photo-upload-area {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.director-photo-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    flex-shrink: 0;
+}
+
+.director-photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.director-photo-preview i {
+    font-size: 3rem;
+    color: var(--text-muted);
+}
+
+.director-photo-preview span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.director-photo-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* === 반 구성 목록 === */
 .class-list {
     display: flex;
     flex-direction: column;
@@ -1620,6 +1747,160 @@ body {
     outline: none;
 }
 
+/* === 음악 플레이어 (플로팅) === */
+.music-player {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 50px;
+    border: 2px solid var(--primary-light);
+    box-shadow: 0 8px 32px rgba(255, 107, 157, 0.15);
+    transition: var(--transition);
+}
+
+.music-player:hover {
+    box-shadow: 0 12px 40px rgba(255, 107, 157, 0.25);
+    border-color: var(--primary);
+}
+
+.music-player-toggle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.music-player-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+}
+
+.music-player-toggle.playing {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.4); }
+    50% { box-shadow: 0 0 0 10px rgba(255, 107, 157, 0); }
+}
+
+.music-player-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.music-player-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.music-player-volume {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.music-player-volume input[type="range"] {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--primary-light);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.music-player-volume input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.music-player-volume input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* === 음악 관리 상태 카드 === */
+.music-status-card {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    border: 2px solid var(--border);
+}
+
+.music-status-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.music-status-icon.active {
+    background: linear-gradient(135deg, var(--secondary-light), var(--secondary));
+    color: white;
+}
+
+.music-status-icon.inactive {
+    background: var(--border);
+    color: var(--text-muted);
+}
+
+.music-status-info h4 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+.music-status-info p {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
 /* === 푸터 === */
 .footer {
     background: #2D3436;
@@ -1758,7 +2039,9 @@ body {
     to { opacity: 0; transform: translateX(100%); }
 }
 
-/* === 반응형 === */
+/* ============================================
+   반응형 - 태블릿 (768px)
+   ============================================ */
 @media (max-width: 768px) {
     .mobile-menu-btn {
         display: block;
@@ -1790,31 +2073,226 @@ body {
     .hero-subtitle { font-size: 1rem; }
 
     .section { padding: 3rem 0; }
-    .section-title { font-size: 1.5rem; }
+    .section-title { font-size: 1.5rem; margin-bottom: 2rem; }
     .page-header h1 { font-size: 1.8rem; }
+    .page-header { padding: 3rem 1.5rem 2rem; margin-bottom: 2rem; }
 
-    .contact-grid { grid-template-columns: 1fr; }
-    .footer-content { grid-template-columns: 1fr; }
+    /* 그리드 1열 전환 */
+    .contact-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .footer-content { grid-template-columns: 1fr; gap: 1.5rem; text-align: center; }
+    .footer-links { align-items: center; }
     .form-row { grid-template-columns: 1fr; }
 
+    /* 달력 모바일 */
     .calendar-day { min-height: 50px; padding: 0.25rem; }
     .day-number { font-size: 0.7rem; }
-    .day-event-dot { font-size: 0.5rem; }
+    .day-event-dot { font-size: 0.5rem; padding: 1px 2px; }
+    .monthly-calendar { overflow-x: auto; }
 
-    .event-timeline-header { flex-direction: column; align-items: flex-start; }
+    /* 행사 타임라인 */
+    .event-timeline-header { flex-direction: column; align-items: flex-start; padding: 1rem 1.25rem; }
+    .event-timeline-body { padding: 0 1.25rem 1rem; }
     .event-photos-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 
+    /* 행사 메타 정보 줄바꿈 */
+    .event-meta { gap: 0.5rem; font-size: 0.8rem; }
+    .event-meta span { flex: 0 0 auto; }
+
+    /* 관리자 */
     .admin-tabs { flex-direction: column; }
     .admin-tab { justify-content: center; }
+    .admin-section { padding: 1.5rem; }
 
+    /* 히어로 버튼 */
     .hero-buttons { flex-direction: column; align-items: center; }
+
+    /* 프로그램 */
     .programs-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+    /* 최근 행사 */
+    .recent-events-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+
+    /* 월간 이벤트 카드 */
+    .month-event-card { flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+    .month-event-type { margin-top: 0.5rem; }
+
+    /* 원장 카드 세로 스택 */
+    .director-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 2rem 1.5rem;
+        gap: 1.5rem;
+    }
+
+    .director-info .director-role::before { display: none; }
+    .director-info .director-role { justify-content: center; }
+
+    /* 원장 사진 업로드 영역 */
+    .director-photo-upload-area {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* 음악 플레이어 */
+    .music-player {
+        bottom: 1rem;
+        left: 1rem;
+        right: auto;
+        padding: 0.5rem 1rem;
+        gap: 0.5rem;
+        max-width: calc(100vw - 5rem);
+    }
+
+    .music-player-toggle {
+        width: 38px;
+        height: 38px;
+        font-size: 0.9rem;
+    }
+
+    .music-player-title { max-width: 100px; }
+    .music-player-volume input[type="range"] { width: 60px; }
+
+    /* 연간 그리드 */
+    .yearly-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+    /* 소개 카드 */
+    .about-card { padding: 1.5rem; }
+
+    /* 년/월 선택기 */
+    .year-selector, .month-selector { font-size: 1.2rem; gap: 1rem; }
+
+    /* 모달 */
+    .modal-overlay { padding: 1rem; }
+    .photo-nav { width: 36px; height: 36px; font-size: 1rem; }
+    .photo-nav.prev { left: 0.5rem; }
+    .photo-nav.next { right: 0.5rem; }
+
+    /* 스크롤 탑 버튼 위치 조정 (음악 플레이어와 겹침 방지) */
+    .scroll-top {
+        bottom: 5rem;
+        right: 1rem;
+        width: 44px;
+        height: 44px;
+    }
+
+    /* 음악 상태 카드 */
+    .music-status-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    /* 토스트 */
+    .toast-container { right: 1rem; left: 1rem; }
+    .toast { min-width: auto; font-size: 0.85rem; padding: 0.75rem 1rem; }
 }
 
+/* ============================================
+   반응형 - 소형 모바일 (480px)
+   ============================================ */
 @media (max-width: 480px) {
+    .container { padding: 0 1rem; }
+
     .title-line { font-size: 1.5rem; }
     .title-line.highlight { font-size: 1.8rem; }
+    .hero-subtitle { font-size: 0.9rem; padding: 0 0.5rem; }
+    .hero-content { padding: 1rem; }
+
+    .section { padding: 2rem 0; }
+    .section-title { font-size: 1.3rem; margin-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.5rem; }
+    .page-header p { font-size: 0.9rem; }
+    .page-header { padding: 2.5rem 1rem 1.5rem; margin-bottom: 1.5rem; }
+
+    /* 모든 그리드 1열 */
     .features-grid { grid-template-columns: 1fr; }
+    .programs-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     .yearly-grid { grid-template-columns: 1fr; }
     .yearly-theme-editor { grid-template-columns: 1fr; }
+    .recent-events-grid { grid-template-columns: 1fr; }
+    .facility-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+
+    /* 작은 패딩 */
+    .feature-card { padding: 1.5rem 1.25rem; }
+    .about-card { padding: 1.25rem; }
+    .admin-section { padding: 1.25rem; }
+    .login-card { padding: 2rem 1.5rem; }
+
+    /* 버튼 크기 */
+    .btn-lg { padding: 0.75rem 1.5rem; font-size: 1rem; }
+
+    /* 원장 카드 */
+    .director-card { padding: 1.5rem 1rem; }
+    .director-photo { width: 110px; height: 110px; }
+    .director-info .director-name { font-size: 1.3rem; }
+
+    /* 월간 이벤트 카드 세로 스택 */
+    .month-event-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .month-event-date { display: flex; gap: 0.5rem; align-items: baseline; }
+    .month-event-date .day { font-size: 1.3rem; }
+
+    /* 음악 플레이어 더 작게 */
+    .music-player {
+        bottom: 0.75rem;
+        left: 0.75rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 40px;
+    }
+    .music-player-toggle { width: 34px; height: 34px; font-size: 0.8rem; }
+    .music-player-title { max-width: 80px; font-size: 0.7rem; }
+    .music-player-volume { gap: 0.3rem; }
+    .music-player-volume input[type="range"] { width: 50px; }
+
+    /* 필터 버튼 */
+    .filter-btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+    .event-filters { gap: 0.35rem; }
+
+    /* 탭 버튼 */
+    .tab-btn { padding: 0.6rem 1.25rem; font-size: 0.9rem; }
+    .schedule-tabs { gap: 0.5rem; }
+
+    /* 관리자 탭 */
+    .admin-tab { padding: 0.6rem 1rem; font-size: 0.85rem; }
+
+    /* 업로드 영역 */
+    .upload-zone { padding: 2rem 1rem; }
+    .upload-zone i { font-size: 2rem; }
+
+    /* 사진 그리드 */
+    .event-photos-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem; }
+    .admin-photo-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+
+    /* 달력 더 작게 */
+    .calendar-day { min-height: 40px; }
+    .calendar-header div { padding: 0.5rem 0.25rem; font-size: 0.75rem; }
+    .day-event-dot { font-size: 0; height: 4px; padding: 0; }
+
+    /* 스크롤 탑 */
+    .scroll-top {
+        bottom: 4rem;
+        right: 0.75rem;
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+}
+
+/* ============================================
+   반응형 - 초소형 모바일 (360px)
+   ============================================ */
+@media (max-width: 360px) {
+    .logo-text { font-size: 1.2rem; }
+    .nav-container { padding: 0 1rem; height: 60px; }
+    .page { padding-top: 60px; }
+    .nav-links { top: 60px; }
+
+    .title-line { font-size: 1.3rem; }
+    .title-line.highlight { font-size: 1.5rem; }
+
+    .music-player-info { display: none; }
+    .music-player { padding: 0.4rem; border-radius: 50%; }
 }

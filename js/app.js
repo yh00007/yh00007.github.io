@@ -14,6 +14,9 @@ const DB = {
     },
     set(key, value) {
         localStorage.setItem('jamjaemi_' + key, JSON.stringify(value));
+    },
+    remove(key) {
+        localStorage.removeItem('jamjaemi_' + key);
     }
 };
 
@@ -71,9 +74,19 @@ function initSampleData() {
         }
     };
 
+    // 소개 페이지 기본 데이터
+    const defaultAboutData = {
+        directorName: '김사랑',
+        directorRole: '원장',
+        directorGreeting: '안녕하세요, 잼재미 어린이집 원장 김사랑입니다.\n\n저희 어린이집은 아이들이 행복하게 뛰어놀며 자연스럽게 배우는 환경을 만들기 위해 최선을 다하고 있습니다.\n\n"놀이가 곧 배움"이라는 철학 아래, 아이 한 명 한 명의 개성과 잠재력을 존중하며 사랑으로 보육합니다.\n\n학부모님들과 함께 아이들의 밝은 미래를 만들어가겠습니다. 감사합니다.',
+        directorPhoto: '',
+        educationPhilosophy: '잼재미 어린이집은 "놀이가 곧 배움"이라는 철학 아래, 아이들이 자유롭게 탐색하고 스스로 배워가는 환경을 만듭니다. 누리과정을 바탕으로 한 통합적 놀이 중심 교육을 실천합니다.'
+    };
+
     DB.set('events', sampleEvents);
     DB.set('schedules', sampleSchedules);
     DB.set('yearlyThemes', sampleThemes);
+    DB.set('aboutData', defaultAboutData);
     DB.set('initialized', true);
 }
 
@@ -104,6 +117,7 @@ function showPage(page) {
 
     // 페이지별 초기화
     if (page === 'home') loadRecentEvents();
+    if (page === 'about') loadAboutPage();
     if (page === 'events') loadEventsTimeline();
     if (page === 'schedule') { loadYearlySchedule(); loadMonthlyCalendar(); }
     if (page === 'admin') { /* 로그인 체크 */ }
@@ -151,6 +165,353 @@ function loadRecentEvents() {
             </div>
         `;
     }).join('');
+}
+
+// ============================
+// 소개 페이지 동적 렌더링
+// ============================
+function loadAboutPage() {
+    const aboutData = DB.get('aboutData', {});
+    const directorCardEl = document.getElementById('directorCard');
+    const aboutContentEl = document.getElementById('aboutContent');
+
+    // 원장 소개 카드 렌더링
+    const directorName = aboutData.directorName || '';
+    const directorRole = aboutData.directorRole || '';
+    const directorGreeting = aboutData.directorGreeting || '';
+    const directorPhoto = aboutData.directorPhoto || '';
+
+    if (directorName || directorGreeting) {
+        const photoHtml = directorPhoto
+            ? `<img src="${directorPhoto}" alt="${directorName}">`
+            : `<i class="fas fa-user-circle director-photo-placeholder"></i>`;
+
+        directorCardEl.innerHTML = `
+            <div class="director-card">
+                <div class="director-photo">
+                    ${photoHtml}
+                </div>
+                <div class="director-info">
+                    <h3 class="director-name">${directorName}</h3>
+                    <div class="director-role">${directorRole}</div>
+                    <p class="director-greeting">${directorGreeting}</p>
+                </div>
+            </div>
+        `;
+    } else {
+        directorCardEl.innerHTML = '';
+    }
+
+    // 교육 철학 및 기타 소개 콘텐츠 렌더링
+    const philosophy = aboutData.educationPhilosophy || '잼재미 어린이집은 "놀이가 곧 배움"이라는 철학 아래, 아이들이 자유롭게 탐색하고 스스로 배워가는 환경을 만듭니다. 누리과정을 바탕으로 한 통합적 놀이 중심 교육을 실천합니다.';
+
+    aboutContentEl.innerHTML = `
+        <div class="about-card mission-card">
+            <div class="about-card-icon">🌱</div>
+            <h3>교육 철학</h3>
+            <p>${philosophy}</p>
+        </div>
+        <div class="about-card">
+            <div class="about-card-icon">👨‍👩‍👧‍👦</div>
+            <h3>반 구성</h3>
+            <div class="class-list">
+                <div class="class-item">
+                    <span class="class-emoji">🐣</span>
+                    <span class="class-name">병아리반</span>
+                    <span class="class-age">만 1세</span>
+                </div>
+                <div class="class-item">
+                    <span class="class-emoji">🐰</span>
+                    <span class="class-name">토끼반</span>
+                    <span class="class-age">만 2세</span>
+                </div>
+                <div class="class-item">
+                    <span class="class-emoji">🦊</span>
+                    <span class="class-name">여우반</span>
+                    <span class="class-age">만 3세</span>
+                </div>
+                <div class="class-item">
+                    <span class="class-emoji">🦁</span>
+                    <span class="class-name">사자반</span>
+                    <span class="class-age">만 4세</span>
+                </div>
+                <div class="class-item">
+                    <span class="class-emoji">🐘</span>
+                    <span class="class-name">코끼리반</span>
+                    <span class="class-age">만 5세</span>
+                </div>
+            </div>
+        </div>
+        <div class="about-card">
+            <div class="about-card-icon">⏰</div>
+            <h3>하루 일과</h3>
+            <div class="schedule-timeline">
+                <div class="timeline-item"><span class="time">07:30</span> 등원 및 자유놀이</div>
+                <div class="timeline-item"><span class="time">09:30</span> 오전 간식</div>
+                <div class="timeline-item"><span class="time">10:00</span> 오전 교육활동</div>
+                <div class="timeline-item"><span class="time">11:30</span> 점심 식사</div>
+                <div class="timeline-item"><span class="time">12:30</span> 낮잠 및 휴식</div>
+                <div class="timeline-item"><span class="time">15:00</span> 오후 간식</div>
+                <div class="timeline-item"><span class="time">15:30</span> 오후 활동 / 특별활동</div>
+                <div class="timeline-item"><span class="time">16:30</span> 자유놀이 및 귀가</div>
+                <div class="timeline-item"><span class="time">19:30</span> 연장보육 마감</div>
+            </div>
+        </div>
+        <div class="about-card">
+            <div class="about-card-icon">🏆</div>
+            <h3>시설 안내</h3>
+            <div class="facility-grid">
+                <div class="facility-item"><i class="fas fa-video"></i> CCTV 완비</div>
+                <div class="facility-item"><i class="fas fa-wind"></i> 공기청정기</div>
+                <div class="facility-item"><i class="fas fa-tree"></i> 야외 놀이터</div>
+                <div class="facility-item"><i class="fas fa-book-reader"></i> 도서 공간</div>
+                <div class="facility-item"><i class="fas fa-music"></i> 음악실</div>
+                <div class="facility-item"><i class="fas fa-dumbbell"></i> 체육 공간</div>
+            </div>
+        </div>
+    `;
+}
+
+// ============================
+// 관리자 - 소개 관리
+// ============================
+function loadAboutAdminForm() {
+    const aboutData = DB.get('aboutData', {});
+
+    const nameInput = document.getElementById('adminDirectorName');
+    const roleInput = document.getElementById('adminDirectorRole');
+    const greetingInput = document.getElementById('adminDirectorGreeting');
+    const philosophyInput = document.getElementById('adminEducationPhilosophy');
+    const photoPreview = document.getElementById('directorPhotoPreview');
+
+    if (nameInput) nameInput.value = aboutData.directorName || '';
+    if (roleInput) roleInput.value = aboutData.directorRole || '';
+    if (greetingInput) greetingInput.value = aboutData.directorGreeting || '';
+    if (philosophyInput) philosophyInput.value = aboutData.educationPhilosophy || '';
+
+    // 사진 미리보기 업데이트
+    if (photoPreview) {
+        if (aboutData.directorPhoto) {
+            photoPreview.innerHTML = `<img src="${aboutData.directorPhoto}" alt="원장 사진">`;
+        } else {
+            photoPreview.innerHTML = `<i class="fas fa-user-circle"></i><span>사진 없음</span>`;
+        }
+    }
+}
+
+function saveAboutData() {
+    const aboutData = {
+        directorName: document.getElementById('adminDirectorName').value.trim(),
+        directorRole: document.getElementById('adminDirectorRole').value.trim(),
+        directorGreeting: document.getElementById('adminDirectorGreeting').value.trim(),
+        directorPhoto: DB.get('aboutData', {}).directorPhoto || '',
+        educationPhilosophy: document.getElementById('adminEducationPhilosophy').value.trim()
+    };
+
+    DB.set('aboutData', aboutData);
+    showToast('소개 정보가 저장되었습니다', 'success');
+}
+
+function handleDirectorPhotoUpload(files) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    if (!file.type.startsWith('image/')) {
+        showToast('이미지 파일만 업로드할 수 있습니다', 'error');
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('파일 크기는 5MB 이하여야 합니다', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const aboutData = DB.get('aboutData', {});
+        aboutData.directorPhoto = dataUrl;
+        DB.set('aboutData', aboutData);
+
+        // 미리보기 업데이트
+        const photoPreview = document.getElementById('directorPhotoPreview');
+        if (photoPreview) {
+            photoPreview.innerHTML = `<img src="${dataUrl}" alt="원장 사진">`;
+        }
+
+        showToast('원장 사진이 업로드되었습니다', 'success');
+    };
+    reader.readAsDataURL(file);
+
+    // 파일 입력 리셋
+    document.getElementById('directorPhotoInput').value = '';
+}
+
+function removeDirectorPhoto() {
+    const aboutData = DB.get('aboutData', {});
+    aboutData.directorPhoto = '';
+    DB.set('aboutData', aboutData);
+
+    const photoPreview = document.getElementById('directorPhotoPreview');
+    if (photoPreview) {
+        photoPreview.innerHTML = `<i class="fas fa-user-circle"></i><span>사진 없음</span>`;
+    }
+
+    showToast('원장 사진이 삭제되었습니다', 'success');
+}
+
+// ============================
+// 음악 플레이어
+// ============================
+let isMusicPlaying = false;
+
+function initMusicPlayer() {
+    const musicData = DB.get('musicData', null);
+    const player = document.getElementById('musicPlayer');
+    const audio = document.getElementById('bgMusic');
+
+    if (musicData && musicData.dataUrl) {
+        // 음악이 있으면 플레이어 표시
+        audio.src = musicData.dataUrl;
+        audio.volume = 0.5;
+        player.style.display = 'flex';
+
+        // 제목 표시
+        const titleEl = document.getElementById('musicPlayerTitle');
+        if (titleEl) {
+            titleEl.textContent = musicData.fileName || '배경 음악';
+        }
+    } else {
+        player.style.display = 'none';
+    }
+}
+
+function toggleMusic() {
+    const audio = document.getElementById('bgMusic');
+    const icon = document.getElementById('musicIcon');
+    const toggleBtn = document.getElementById('musicToggleBtn');
+
+    if (!audio.src || audio.src === window.location.href) return;
+
+    if (isMusicPlaying) {
+        audio.pause();
+        isMusicPlaying = false;
+        icon.className = 'fas fa-play';
+        toggleBtn.classList.remove('playing');
+    } else {
+        audio.play().then(() => {
+            isMusicPlaying = true;
+            icon.className = 'fas fa-pause';
+            toggleBtn.classList.add('playing');
+        }).catch(err => {
+            console.log('자동 재생 차단:', err);
+            showToast('브라우저 정책으로 자동 재생이 차단되었습니다. 다시 클릭해주세요.', 'error');
+        });
+    }
+}
+
+function setVolume(value) {
+    const audio = document.getElementById('bgMusic');
+    audio.volume = value / 100;
+}
+
+// 관리자 - 음악 업로드
+function handleMusicUpload(files) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    if (!file.type.startsWith('audio/')) {
+        showToast('오디오 파일만 업로드할 수 있습니다', 'error');
+        return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+        showToast('파일 크기는 15MB 이하여야 합니다', 'error');
+        return;
+    }
+
+    showToast('음악 파일을 업로드하고 있습니다...', 'success');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const musicData = {
+            dataUrl: dataUrl,
+            fileName: file.name,
+            fileSize: file.size,
+            uploadDate: new Date().toISOString()
+        };
+
+        try {
+            DB.set('musicData', musicData);
+            initMusicPlayer();
+            loadMusicAdminStatus();
+            showToast(`"${file.name}" 음악이 업로드되었습니다`, 'success');
+        } catch (err) {
+            showToast('파일이 너무 큽니다. 더 작은 파일을 업로드해주세요.', 'error');
+            console.error('localStorage 저장 실패:', err);
+        }
+    };
+    reader.readAsDataURL(file);
+
+    // 파일 입력 리셋
+    document.getElementById('musicFileInput').value = '';
+}
+
+function deleteMusic() {
+    if (!confirm('배경 음악을 삭제하시겠습니까?')) return;
+
+    const audio = document.getElementById('bgMusic');
+    audio.pause();
+    audio.src = '';
+    isMusicPlaying = false;
+
+    const icon = document.getElementById('musicIcon');
+    const toggleBtn = document.getElementById('musicToggleBtn');
+    icon.className = 'fas fa-play';
+    toggleBtn.classList.remove('playing');
+
+    DB.remove('musicData');
+
+    document.getElementById('musicPlayer').style.display = 'none';
+    loadMusicAdminStatus();
+    showToast('배경 음악이 삭제되었습니다', 'success');
+}
+
+function loadMusicAdminStatus() {
+    const statusCard = document.getElementById('musicStatusCard');
+    const deleteBtn = document.getElementById('deleteMusicBtn');
+    if (!statusCard) return;
+
+    const musicData = DB.get('musicData', null);
+
+    if (musicData && musicData.dataUrl) {
+        const sizeMB = (musicData.fileSize / (1024 * 1024)).toFixed(2);
+        const uploadDate = musicData.uploadDate ? formatDate(musicData.uploadDate.split('T')[0]) : '알 수 없음';
+
+        statusCard.innerHTML = `
+            <div class="music-status-icon active">
+                <i class="fas fa-music"></i>
+            </div>
+            <div class="music-status-info">
+                <h4>현재 등록된 음악</h4>
+                <p><strong>${musicData.fileName || '알 수 없는 파일'}</strong></p>
+                <p>파일 크기: ${sizeMB}MB | 등록일: ${uploadDate}</p>
+            </div>
+        `;
+        if (deleteBtn) deleteBtn.style.display = 'inline-flex';
+    } else {
+        statusCard.innerHTML = `
+            <div class="music-status-icon inactive">
+                <i class="fas fa-volume-mute"></i>
+            </div>
+            <div class="music-status-info">
+                <h4>등록된 음악 없음</h4>
+                <p>아래에서 배경 음악 파일을 업로드해주세요.</p>
+            </div>
+        `;
+        if (deleteBtn) deleteBtn.style.display = 'none';
+    }
 }
 
 // ============================
@@ -485,6 +846,8 @@ function loadAdminData() {
     loadAdminPhotoGrid();
     loadScheduleAdminList();
     loadYearlyThemeEditor();
+    loadAboutAdminForm();
+    loadMusicAdminStatus();
 }
 
 function switchAdminTab(tab) {
@@ -495,6 +858,10 @@ function switchAdminTab(tab) {
         let btn = event.target.closest('.admin-tab');
         if (btn) btn.classList.add('active');
     }
+
+    // 탭 전환 시 데이터 새로고침
+    if (tab === 'about-manage') loadAboutAdminForm();
+    if (tab === 'music-manage') loadMusicAdminStatus();
 }
 
 // ============================
@@ -876,4 +1243,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initSampleData();
     createParticles();
     loadRecentEvents();
+    initMusicPlayer();
 });

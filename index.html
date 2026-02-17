@@ -9,6 +9,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- 배경 음악 -->
+    <audio id="bgMusic" loop></audio>
+
+    <!-- 플로팅 음악 플레이어 -->
+    <div class="music-player" id="musicPlayer" style="display:none;">
+        <button class="music-player-toggle" id="musicToggleBtn" onclick="toggleMusic()" title="음악 재생/정지">
+            <i class="fas fa-play" id="musicIcon"></i>
+        </button>
+        <div class="music-player-info">
+            <span class="music-player-title" id="musicPlayerTitle">배경 음악</span>
+            <div class="music-player-volume">
+                <i class="fas fa-volume-up"></i>
+                <input type="range" id="musicVolume" min="0" max="100" value="50" oninput="setVolume(this.value)">
+            </div>
+        </div>
+    </div>
+
     <!-- 네비게이션 -->
     <nav class="navbar" id="navbar">
         <div class="nav-container">
@@ -220,70 +237,12 @@
             <p>잼재미 어린이집을 소개합니다</p>
         </div>
         <div class="container">
-            <div class="about-content">
-                <div class="about-card mission-card">
-                    <div class="about-card-icon">🌱</div>
-                    <h3>교육 철학</h3>
-                    <p>잼재미 어린이집은 "놀이가 곧 배움"이라는 철학 아래, 아이들이 자유롭게 탐색하고 스스로 배워가는 환경을 만듭니다. 누리과정을 바탕으로 한 통합적 놀이 중심 교육을 실천합니다.</p>
-                </div>
-                <div class="about-card">
-                    <div class="about-card-icon">👨‍👩‍👧‍👦</div>
-                    <h3>반 구성</h3>
-                    <div class="class-list">
-                        <div class="class-item">
-                            <span class="class-emoji">🐣</span>
-                            <span class="class-name">병아리반</span>
-                            <span class="class-age">만 1세</span>
-                        </div>
-                        <div class="class-item">
-                            <span class="class-emoji">🐰</span>
-                            <span class="class-name">토끼반</span>
-                            <span class="class-age">만 2세</span>
-                        </div>
-                        <div class="class-item">
-                            <span class="class-emoji">🦊</span>
-                            <span class="class-name">여우반</span>
-                            <span class="class-age">만 3세</span>
-                        </div>
-                        <div class="class-item">
-                            <span class="class-emoji">🦁</span>
-                            <span class="class-name">사자반</span>
-                            <span class="class-age">만 4세</span>
-                        </div>
-                        <div class="class-item">
-                            <span class="class-emoji">🐘</span>
-                            <span class="class-name">코끼리반</span>
-                            <span class="class-age">만 5세</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="about-card">
-                    <div class="about-card-icon">⏰</div>
-                    <h3>하루 일과</h3>
-                    <div class="schedule-timeline">
-                        <div class="timeline-item"><span class="time">07:30</span> 등원 및 자유놀이</div>
-                        <div class="timeline-item"><span class="time">09:30</span> 오전 간식</div>
-                        <div class="timeline-item"><span class="time">10:00</span> 오전 교육활동</div>
-                        <div class="timeline-item"><span class="time">11:30</span> 점심 식사</div>
-                        <div class="timeline-item"><span class="time">12:30</span> 낮잠 및 휴식</div>
-                        <div class="timeline-item"><span class="time">15:00</span> 오후 간식</div>
-                        <div class="timeline-item"><span class="time">15:30</span> 오후 활동 / 특별활동</div>
-                        <div class="timeline-item"><span class="time">16:30</span> 자유놀이 및 귀가</div>
-                        <div class="timeline-item"><span class="time">19:30</span> 연장보육 마감</div>
-                    </div>
-                </div>
-                <div class="about-card">
-                    <div class="about-card-icon">🏆</div>
-                    <h3>시설 안내</h3>
-                    <div class="facility-grid">
-                        <div class="facility-item"><i class="fas fa-video"></i> CCTV 완비</div>
-                        <div class="facility-item"><i class="fas fa-wind"></i> 공기청정기</div>
-                        <div class="facility-item"><i class="fas fa-tree"></i> 야외 놀이터</div>
-                        <div class="facility-item"><i class="fas fa-book-reader"></i> 도서 공간</div>
-                        <div class="facility-item"><i class="fas fa-music"></i> 음악실</div>
-                        <div class="facility-item"><i class="fas fa-dumbbell"></i> 체육 공간</div>
-                    </div>
-                </div>
+            <!-- 원장 소개 카드 (JS로 동적 렌더링) -->
+            <div id="directorCard"></div>
+
+            <!-- 소개 콘텐츠 (JS로 동적 렌더링) -->
+            <div class="about-content" id="aboutContent">
+                <!-- JS loadAboutPage()에서 동적으로 생성 -->
             </div>
         </div>
     </section>
@@ -379,7 +338,7 @@
     <section id="page-admin" class="page">
         <div class="page-header admin-header">
             <h1>🔐 관리자 페이지</h1>
-            <p>행사 관리 · 사진 업로드 · 일정 관리</p>
+            <p>행사 관리 · 사진 업로드 · 일정 관리 · 소개 관리 · 음악 관리</p>
         </div>
 
         <!-- 로그인 -->
@@ -407,6 +366,12 @@
                 </button>
                 <button class="admin-tab" onclick="switchAdminTab('schedule-manage')">
                     <i class="fas fa-calendar-alt"></i> 일정 관리
+                </button>
+                <button class="admin-tab" onclick="switchAdminTab('about-manage')">
+                    <i class="fas fa-info-circle"></i> 소개 관리
+                </button>
+                <button class="admin-tab" onclick="switchAdminTab('music-manage')">
+                    <i class="fas fa-music"></i> 음악 관리
                 </button>
             </div>
 
@@ -544,6 +509,81 @@
                     <h3><i class="fas fa-list"></i> 등록된 일정</h3>
                     <div class="schedule-admin-list" id="scheduleAdminList">
                         <!-- JS로 동적 생성 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 소개 관리 -->
+            <div id="admin-about-manage" class="admin-content">
+                <div class="admin-section">
+                    <h3><i class="fas fa-user-tie"></i> 원장 소개 관리</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>원장 이름</label>
+                            <input type="text" id="adminDirectorName" placeholder="예: 홍길동">
+                        </div>
+                        <div class="form-group">
+                            <label>직책</label>
+                            <input type="text" id="adminDirectorRole" placeholder="예: 원장">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>인사말</label>
+                        <textarea id="adminDirectorGreeting" rows="4" placeholder="원장 인사말을 입력하세요"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>원장 사진</label>
+                        <div class="director-photo-upload-area">
+                            <div class="director-photo-preview" id="directorPhotoPreview">
+                                <i class="fas fa-user-circle"></i>
+                                <span>사진 없음</span>
+                            </div>
+                            <div class="director-photo-actions">
+                                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('directorPhotoInput').click()">
+                                    <i class="fas fa-upload"></i> 사진 업로드
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="removeDirectorPhoto()">
+                                    <i class="fas fa-trash"></i> 사진 삭제
+                                </button>
+                                <input type="file" id="directorPhotoInput" accept="image/*" style="display:none" onchange="handleDirectorPhotoUpload(this.files)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-book"></i> 교육 철학 관리</h3>
+                    <div class="form-group">
+                        <label>교육 철학 내용</label>
+                        <textarea id="adminEducationPhilosophy" rows="5" placeholder="교육 철학을 입력하세요"></textarea>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg" onclick="saveAboutData()" style="margin-top:1rem;">
+                    <i class="fas fa-save"></i> 소개 정보 저장
+                </button>
+            </div>
+
+            <!-- 음악 관리 -->
+            <div id="admin-music-manage" class="admin-content">
+                <div class="admin-section">
+                    <h3><i class="fas fa-music"></i> 배경 음악 관리</h3>
+                    <div class="music-status-card" id="musicStatusCard">
+                        <!-- JS로 동적 생성 -->
+                    </div>
+                    <div class="form-group" style="margin-top:1.5rem;">
+                        <label>음악 파일 업로드</label>
+                        <div class="upload-zone" onclick="document.getElementById('musicFileInput').click()">
+                            <i class="fas fa-file-audio"></i>
+                            <p>클릭하여 음악 파일 업로드</p>
+                            <small>MP3, WAV, OGG (최대 15MB)</small>
+                            <input type="file" id="musicFileInput" accept="audio/*" style="display:none" onchange="handleMusicUpload(this.files)">
+                        </div>
+                    </div>
+                    <div class="music-admin-actions" style="margin-top:1rem;">
+                        <button class="btn btn-danger" onclick="deleteMusic()" id="deleteMusicBtn" style="display:none;">
+                            <i class="fas fa-trash"></i> 음악 삭제
+                        </button>
                     </div>
                 </div>
             </div>
