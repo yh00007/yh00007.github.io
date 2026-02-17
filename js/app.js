@@ -19,8 +19,13 @@ firebase.initializeApp(firebaseConfig);
 const firebaseDB = firebase.database();
 let firebaseReady = false;
 let syncInProgress = false;
-let isLocalWrite = false;
-let firebaseInitDone = false; // Firebase 초기 로드 완료 여부
+let firebaseInitDone = false;
+
+// ★ 핵심 개선: 개별 write 카운터 (race condition 방지)
+let activeWriteCount = 0;
+
+// ★ 핵심 개선: Firebase 준비 전 저장 요청을 대기열에 보관
+let pendingWrites = {};
 
 // ============================
 // 데이터 관리 (localStorage + Firebase 동기화)
@@ -35,48 +40,152 @@ const DB = {
         } catch { return fallback; }
     },
     set(key, value) {
+        // 1. localStorage에 저장 (항상)
         localStorage.setItem('jamjaemi_' + key, JSON.stringify(value));
-        // Firebase에 즉시 저장 (동기화의 핵심)
+
+        // 2. Firebase에 저장
         if (firebaseReady && !syncInProgress) {
-            isLocalWrite = true;
-            firebaseDB.ref('jamjaemi/' + key).set(value).then(() => {
-                console.log('[DB.set] Firebase 저장 완료:', key);
-            }).catch(err => {
-                console.warn('[DB.set] Firebase 저장 실패:', key, err);
-            }).finally(() => {
-                isLocalWrite = false;
-            });
+            // Firebase 준비됨 → 즉시 저장
+            _writeToFirebase(key, value);
+        } else {
+            // Firebase 아직 준비 안됨 → 대기열에 추가
+            pendingWrites[key] = value;
+            console.log('[DB.set] Firebase 미준비, 대기열 추가:', key);
         }
     },
     remove(key) {
         localStorage.removeItem('jamjaemi_' + key);
         if (firebaseReady && !syncInProgress) {
-            isLocalWrite = true;
-            firebaseDB.ref('jamjaemi/' + key).remove().then(() => {
-                console.log('[DB.remove] Firebase 삭제 완료:', key);
-            }).catch(err => {
-                console.warn('[DB.remove] Firebase 삭제 실패:', key, err);
-            }).finally(() => {
-                isLocalWrite = false;
-            });
+            _removeFromFirebase(key);
+        } else {
+            pendingWrites[key] = null; // null = 삭제 표시
         }
     }
 };
 
+// ★ Firebase 쓰기 (카운터 기반, race condition 방지)
+function _writeToFirebase(key, value) {
+    activeWriteCount++;
+    console.log('[Firebase] 저장 시작:', key, '(활성 쓰기:', activeWriteCount + ')');
+    firebaseDB.ref('jamjaemi/' + key).set(value).then(() => {
+        console.log('[Firebase] 저장 완료:', key);
+    }).catch(err => {
+        console.error('[Firebase] 저장 실패:', key, err.message);
+        _showSyncError('저장 실패: ' + key + ' - ' + err.message);
+    }).finally(() => {
+        activeWriteCount = Math.max(0, activeWriteCount - 1);
+    });
+}
+
+function _removeFromFirebase(key) {
+    activeWriteCount++;
+    firebaseDB.ref('jamjaemi/' + key).remove().then(() => {
+        console.log('[Firebase] 삭제 완료:', key);
+    }).catch(err => {
+        console.error('[Firebase] 삭제 실패:', key, err.message);
+    }).finally(() => {
+        activeWriteCount = Math.max(0, activeWriteCount - 1);
+    });
+}
+
+// ★ 대기열 처리 (Firebase 준비 후 호출)
+function _flushPendingWrites() {
+    const keys = Object.keys(pendingWrites);
+    if (keys.length === 0) return;
+    console.log('[Firebase] 대기열 처리:', keys.length + '개 항목');
+    keys.forEach(key => {
+        const value = pendingWrites[key];
+        if (value === null) {
+            _removeFromFirebase(key);
+        } else {
+            _writeToFirebase(key, value);
+        }
+    });
+    pendingWrites = {};
+}
+
 // ============================
-// Firebase 동기화 (핵심 로직)
+// Firebase 동기화 (완전 재설계)
 // ============================
 function initFirebaseSync() {
+    console.log('[Sync] Firebase 동기화 시작...');
+    _updateSyncStatus('connecting');
+
+    // ★ 연결 상태 모니터링
+    firebaseDB.ref('.info/connected').on('value', snap => {
+        if (snap.val() === true) {
+            console.log('[Sync] Firebase 연결됨');
+            _updateSyncStatus('connected');
+        } else {
+            console.log('[Sync] Firebase 연결 끊김');
+            _updateSyncStatus('disconnected');
+        }
+    });
+
     const ref = firebaseDB.ref('jamjaemi');
 
-    // ★ 1단계: Firebase에서 데이터 가져오기 (최우선)
+    // ★ 1단계: Firebase에서 데이터 가져오기
     ref.once('value').then(snapshot => {
         const firebaseData = snapshot.val();
         firebaseReady = true;
+        console.log('[Sync] Firebase 데이터 수신:', firebaseData ? Object.keys(firebaseData).length + '개 키' : '비어있음');
 
         if (firebaseData && Object.keys(firebaseData).length > 0) {
-            // ★ Firebase에 데이터가 있음 → 무조건 Firebase 데이터를 사용
-            console.log('[Sync] Firebase 데이터 발견, localStorage 덮어쓰기');
+            // Firebase에 데이터 있음 → localStorage 덮어쓰기
+            console.log('[Sync] Firebase → localStorage 동기화');
+            syncInProgress = true;
+            SYNC_KEYS.forEach(key => {
+                if (firebaseData[key] !== undefined && firebaseData[key] !== null) {
+                    localStorage.setItem('jamjaemi_' + key, JSON.stringify(firebaseData[key]));
+                    console.log('[Sync] 키 동기화:', key);
+                }
+            });
+            syncInProgress = false;
+
+            // 전체 화면 갱신
+            refreshAllPages();
+            initMusicPlayer();
+        } else {
+            // Firebase 비어있음 → 로컬 데이터 업로드
+            console.log('[Sync] Firebase 비어있음 → 로컬 데이터 업로드');
+            uploadAllToFirebase();
+        }
+
+        firebaseInitDone = true;
+        _updateSyncStatus('synced');
+
+        // ★ 대기열에 있던 쓰기 처리
+        _flushPendingWrites();
+
+        // ★ 2단계: 실시간 리스너 등록
+        _setupRealtimeListeners();
+
+        console.log('[Sync] 초기화 완료!');
+
+    }).catch(err => {
+        console.error('[Sync] Firebase 초기 연결 실패:', err.message);
+        _updateSyncStatus('error');
+
+        // ★ 연결 실패해도 기본 동작 유지
+        firebaseReady = false;
+        firebaseInitDone = true;
+
+        // ★ 3초 후 재시도
+        setTimeout(() => {
+            console.log('[Sync] 재연결 시도...');
+            _retryFirebaseSync();
+        }, 3000);
+    });
+}
+
+// ★ 재연결 시도
+function _retryFirebaseSync() {
+    firebaseDB.ref('jamjaemi').once('value').then(snapshot => {
+        const firebaseData = snapshot.val();
+        firebaseReady = true;
+        console.log('[Sync] 재연결 성공!');
+
+        if (firebaseData && Object.keys(firebaseData).length > 0) {
             syncInProgress = true;
             SYNC_KEYS.forEach(key => {
                 if (firebaseData[key] !== undefined && firebaseData[key] !== null) {
@@ -84,49 +193,47 @@ function initFirebaseSync() {
                 }
             });
             syncInProgress = false;
-
-            // ★ Firebase 데이터로 전체 페이지 다시 렌더링
             refreshAllPages();
-            initMusicPlayer();
-        } else {
-            // ★ Firebase에 데이터 없음 → 로컬 데이터(샘플 포함)를 Firebase로 업로드
-            console.log('[Sync] Firebase 비어있음, 로컬 데이터 업로드');
-            uploadAllToFirebase();
         }
 
         firebaseInitDone = true;
-
-        // ★ 2단계: 실시간 변경 감지 리스너 (다른 기기의 변경 수신)
-        SYNC_KEYS.forEach(key => {
-            firebaseDB.ref('jamjaemi/' + key).on('value', snapshot => {
-                // 내가 방금 쓴 변경이면 무시
-                if (isLocalWrite || syncInProgress || !firebaseInitDone) return;
-
-                const newVal = snapshot.val();
-                if (newVal === null || newVal === undefined) return;
-
-                const newRaw = JSON.stringify(newVal);
-                const localRaw = localStorage.getItem('jamjaemi_' + key);
-
-                // 로컬과 다를 때만 갱신
-                if (localRaw === newRaw) return;
-
-                console.log('[Sync] 실시간 변경 감지:', key);
-                syncInProgress = true;
-                localStorage.setItem('jamjaemi_' + key, newRaw);
-                syncInProgress = false;
-
-                refreshAllPages();
-            });
-        });
-
-        console.log('[Sync] Firebase 동기화 초기화 완료');
+        _updateSyncStatus('synced');
+        _flushPendingWrites();
+        _setupRealtimeListeners();
 
     }).catch(err => {
-        console.warn('[Sync] Firebase 연결 실패, 오프라인 모드:', err);
-        firebaseReady = false;
-        firebaseInitDone = true;
+        console.error('[Sync] 재연결 실패:', err.message);
+        _updateSyncStatus('error');
+        // 10초 후 다시 시도
+        setTimeout(_retryFirebaseSync, 10000);
     });
+}
+
+// ★ 실시간 리스너 (개선됨)
+function _setupRealtimeListeners() {
+    SYNC_KEYS.forEach(key => {
+        firebaseDB.ref('jamjaemi/' + key).on('value', snapshot => {
+            // 내가 쓰고 있는 중이면 무시
+            if (activeWriteCount > 0 || syncInProgress || !firebaseInitDone) return;
+
+            const newVal = snapshot.val();
+            if (newVal === null || newVal === undefined) return;
+
+            const newRaw = JSON.stringify(newVal);
+            const localRaw = localStorage.getItem('jamjaemi_' + key);
+
+            // 동일하면 무시
+            if (localRaw === newRaw) return;
+
+            console.log('[Realtime] 변경 감지:', key);
+            syncInProgress = true;
+            localStorage.setItem('jamjaemi_' + key, newRaw);
+            syncInProgress = false;
+
+            refreshAllPages();
+        });
+    });
+    console.log('[Realtime] 리스너 등록 완료:', SYNC_KEYS.length + '개 키');
 }
 
 function uploadAllToFirebase() {
@@ -138,14 +245,94 @@ function uploadAllToFirebase() {
         }
     });
     if (Object.keys(updates).length > 0) {
-        isLocalWrite = true;
+        activeWriteCount++;
         firebaseDB.ref('jamjaemi').update(updates).then(() => {
-            console.log('[Sync] 로컬 → Firebase 업로드 완료');
+            console.log('[Sync] 로컬 → Firebase 업로드 완료 (' + Object.keys(updates).length + '개 키)');
         }).catch(err => {
-            console.warn('[Sync] Firebase 업로드 실패:', err);
+            console.error('[Sync] Firebase 업로드 실패:', err.message);
+            _showSyncError('데이터 업로드 실패: ' + err.message);
         }).finally(() => {
-            isLocalWrite = false;
+            activeWriteCount = Math.max(0, activeWriteCount - 1);
         });
+    }
+}
+
+// ★ 동기화 상태 UI 표시
+function _updateSyncStatus(status) {
+    let indicator = document.getElementById('syncStatusIndicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'syncStatusIndicator';
+        indicator.style.cssText = 'position:fixed;bottom:10px;left:10px;padding:6px 12px;border-radius:20px;font-size:11px;z-index:9999;display:flex;align-items:center;gap:5px;font-family:sans-serif;transition:all 0.3s;cursor:pointer;';
+        indicator.onclick = function() { _manualSync(); };
+        indicator.title = '클릭하면 수동 동기화';
+        document.body.appendChild(indicator);
+    }
+
+    const statusMap = {
+        'connecting': { bg: '#FFF3CD', color: '#856404', icon: '🔄', text: '연결 중...' },
+        'connected': { bg: '#D4EDDA', color: '#155724', icon: '🟢', text: '연결됨' },
+        'synced': { bg: '#D4EDDA', color: '#155724', icon: '✅', text: '동기화 완료' },
+        'disconnected': { bg: '#F8D7DA', color: '#721C24', icon: '🔴', text: '연결 끊김' },
+        'error': { bg: '#F8D7DA', color: '#721C24', icon: '❌', text: '동기화 오류' },
+        'syncing': { bg: '#CCE5FF', color: '#004085', icon: '🔄', text: '동기화 중...' }
+    };
+
+    const s = statusMap[status] || statusMap['connecting'];
+    indicator.style.background = s.bg;
+    indicator.style.color = s.color;
+    indicator.innerHTML = s.icon + ' ' + s.text;
+
+    // 성공 상태면 5초 후 자동 숨김
+    if (status === 'synced' || status === 'connected') {
+        setTimeout(() => {
+            if (indicator) indicator.style.opacity = '0.3';
+        }, 5000);
+    } else {
+        indicator.style.opacity = '1';
+    }
+}
+
+// ★ 수동 동기화 (사용자가 동기화 상태 클릭 시)
+function _manualSync() {
+    if (!firebaseReady) {
+        showToast('Firebase 연결을 시도합니다...', 'success');
+        _retryFirebaseSync();
+        return;
+    }
+
+    _updateSyncStatus('syncing');
+    showToast('수동 동기화 중...', 'success');
+
+    // 로컬 데이터를 Firebase에 강제 업로드
+    const updates = {};
+    SYNC_KEYS.forEach(key => {
+        const raw = localStorage.getItem('jamjaemi_' + key);
+        if (raw) {
+            try { updates[key] = JSON.parse(raw); } catch {}
+        }
+    });
+
+    if (Object.keys(updates).length > 0) {
+        activeWriteCount++;
+        firebaseDB.ref('jamjaemi').update(updates).then(() => {
+            showToast('동기화 완료! 모든 데이터가 클라우드에 저장되었습니다.', 'success');
+            _updateSyncStatus('synced');
+        }).catch(err => {
+            showToast('동기화 실패: ' + err.message, 'error');
+            _updateSyncStatus('error');
+        }).finally(() => {
+            activeWriteCount = Math.max(0, activeWriteCount - 1);
+        });
+    }
+}
+
+// ★ 동기화 오류 표시
+function _showSyncError(msg) {
+    console.error('[Sync Error]', msg);
+    // Firebase 권한 오류인 경우 특별 안내
+    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+        showToast('⚠️ Firebase 권한 오류! 데이터베이스 규칙을 확인하세요.', 'error');
     }
 }
 
