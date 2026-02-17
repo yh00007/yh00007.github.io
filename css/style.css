@@ -132,13 +132,15 @@ body {
 }
 
 .admin-link {
-    background: linear-gradient(135deg, var(--purple-light), var(--purple));
+    background: linear-gradient(135deg, #6C5CE7, #8B5CF6) !important;
     color: white !important;
+    border: 2px solid #6C5CE7 !important;
 }
 
 .admin-link:hover {
-    background: linear-gradient(135deg, var(--purple), var(--primary)) !important;
+    background: linear-gradient(135deg, #5B4CD4, #7C4FE0) !important;
     color: white !important;
+    border-color: #5B4CD4 !important;
 }
 
 .mobile-menu-btn {
@@ -2173,9 +2175,10 @@ body {
         right: 0;
         background: white;
         flex-direction: column;
-        padding: 1rem;
+        padding: 0.75rem;
         box-shadow: var(--shadow);
-        gap: 0.25rem;
+        gap: 0.35rem;
+        z-index: 999;
     }
 
     .nav-links.show {
@@ -2183,8 +2186,35 @@ body {
     }
 
     .nav-links a {
-        padding: 1rem 1.25rem;
+        padding: 0.9rem 1.25rem;
         font-size: 1.1rem;
+        border-radius: 12px;
+        display: block;
+        text-align: center;
+        background: var(--bg);
+        color: var(--text);
+        border: 2px solid transparent;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+        background: var(--primary-light);
+        color: var(--primary-dark);
+        border-color: var(--primary-light);
+    }
+
+    .nav-links a.admin-link {
+        background: linear-gradient(135deg, #6C5CE7, #8B5CF6) !important;
+        color: white !important;
+        border-color: #6C5CE7 !important;
+        margin-top: 0.25rem;
+    }
+
+    .nav-links a.admin-link:hover,
+    .nav-links a.admin-link.active {
+        background: linear-gradient(135deg, #5B4CD4, #7C4FE0) !important;
+        color: white !important;
+        border-color: #5B4CD4 !important;
     }
 
     .title-line { font-size: 2rem; }
@@ -2397,6 +2427,153 @@ body {
         width: 40px;
         height: 40px;
         font-size: 1rem;
+    }
+}
+
+/* === 관리자 에디터 아이템 (공통) === */
+.admin-editor-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.admin-editor-item input {
+    flex: 1;
+    min-width: 80px;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+.admin-editor-item input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.admin-editor-item .input-sm {
+    max-width: 80px;
+    flex: 0 0 80px;
+}
+
+.admin-editor-item .input-emoji {
+    max-width: 60px;
+    flex: 0 0 60px;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+.admin-editor-item .input-icon {
+    max-width: 140px;
+    flex: 0 0 140px;
+    font-size: 0.8rem;
+}
+
+.admin-editor-item textarea {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 36px;
+}
+
+.admin-editor-item textarea:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.admin-editor-item .btn-remove {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #ff4757;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: var(--transition);
+}
+
+.admin-editor-item .btn-remove:hover {
+    background: #e84141;
+    transform: scale(1.1);
+}
+
+/* === 카카오맵 === */
+.kakao-map-container {
+    width: 100%;
+    height: 350px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 2px solid var(--border);
+}
+
+.kakao-map-container .map-fallback {
+    height: 100%;
+    background: linear-gradient(135deg, #e8f4f8, #f0e6ff);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    font-size: 3rem;
+    border: none;
+}
+
+.kakao-map-container .map-fallback p {
+    font-size: 1rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+/* === 관리자 탭 모바일 스크롤 === */
+@media (max-width: 768px) {
+    .admin-tabs {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 0.4rem;
+        padding-bottom: 0.75rem;
+    }
+    .admin-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 0.85rem;
+        padding: 0.6rem 1rem;
+    }
+    .admin-editor-item {
+        flex-wrap: wrap;
+    }
+    .admin-editor-item input,
+    .admin-editor-item textarea {
+        min-width: 60px;
+    }
+    .admin-editor-item .input-sm {
+        max-width: 70px;
+        flex: 0 0 70px;
+    }
+    .admin-editor-item .input-emoji {
+        max-width: 50px;
+        flex: 0 0 50px;
+    }
+    .admin-editor-item .input-icon {
+        max-width: 110px;
+        flex: 0 0 110px;
     }
 }
 

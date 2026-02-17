@@ -48,23 +48,11 @@
 
     <!-- ===== 홈 (홍보 페이지) ===== -->
     <section id="page-home" class="page active">
-        <!-- 히어로 섹션 -->
+        <!-- 히어로 섹션 (동적) -->
         <div class="hero">
             <div class="hero-particles" id="heroParticles"></div>
-            <div class="hero-content">
-                <h1 class="hero-title">
-                    <span class="title-line">아이들의 꿈이</span>
-                    <span class="title-line highlight">무럭무럭 자라는 곳</span>
-                </h1>
-                <p class="hero-subtitle">잼재미 어린이집에서 사랑과 배움으로 아이들의 밝은 미래를 함께 만들어갑니다</p>
-                <div class="hero-buttons">
-                    <button class="btn btn-primary btn-lg" onclick="showPage('about')">
-                        <i class="fas fa-heart"></i> 어린이집 알아보기
-                    </button>
-                    <button class="btn btn-outline btn-lg" onclick="showPage('events')">
-                        <i class="fas fa-camera"></i> 행사 사진 보기
-                    </button>
-                </div>
+            <div class="hero-content" id="heroContent">
+                <!-- JS에서 동적 생성 -->
             </div>
             <div class="hero-decoration">
                 <div class="floating-emoji" style="--delay: 0s; --x: 10%; --y: 20%">🌟</div>
@@ -76,7 +64,7 @@
             </div>
         </div>
 
-        <!-- 특징 섹션 -->
+        <!-- 특징 섹션 (동적) -->
         <div class="section features-section">
             <div class="container">
                 <h2 class="section-title">
@@ -84,40 +72,13 @@
                     잼재미 어린이집이 특별한 이유
                     <span class="title-deco">✨</span>
                 </h2>
-                <div class="features-grid">
-                    <div class="feature-card" data-aos="fade-up">
-                        <div class="feature-icon" style="background: linear-gradient(135deg, #FF9A9E, #FECFEF)">
-                            <i class="fas fa-heart"></i>
-                        </div>
-                        <h3>사랑 가득한 돌봄</h3>
-                        <p>전문 보육교사가 가정 같은 따뜻한 환경에서 아이 한 명 한 명을 소중히 돌봅니다</p>
-                    </div>
-                    <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
-                        <div class="feature-icon" style="background: linear-gradient(135deg, #A8EDEA, #FED6E3)">
-                            <i class="fas fa-palette"></i>
-                        </div>
-                        <h3>창의력 쑥쑥 교육</h3>
-                        <p>놀이 중심의 누리과정으로 아이들의 상상력과 창의력을 키워갑니다</p>
-                    </div>
-                    <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
-                        <div class="feature-icon" style="background: linear-gradient(135deg, #FFD89B, #19547B)">
-                            <i class="fas fa-utensils"></i>
-                        </div>
-                        <h3>건강한 급식</h3>
-                        <p>영양사가 설계한 균형 잡힌 식단으로 건강하고 맛있는 급식을 제공합니다</p>
-                    </div>
-                    <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
-                        <div class="feature-icon" style="background: linear-gradient(135deg, #C3CFE2, #F5F7FA)">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <h3>안전한 환경</h3>
-                        <p>CCTV, 공기청정기, 안전매트 등 최신 안전설비를 완비하고 있습니다</p>
-                    </div>
+                <div class="features-grid" id="featuresGrid">
+                    <!-- JS에서 동적 생성 -->
                 </div>
             </div>
         </div>
 
-        <!-- 프로그램 안내 -->
+        <!-- 프로그램 안내 (동적) -->
         <div class="section programs-section">
             <div class="container">
                 <h2 class="section-title">
@@ -125,38 +86,8 @@
                     교육 프로그램
                     <span class="title-deco">📚</span>
                 </h2>
-                <div class="programs-grid">
-                    <div class="program-card">
-                        <div class="program-badge">인기</div>
-                        <div class="program-emoji">🎨</div>
-                        <h3>미술 놀이</h3>
-                        <p>다양한 재료로 자유롭게 표현하며 감성과 창의력을 키워요</p>
-                    </div>
-                    <div class="program-card">
-                        <div class="program-emoji">🎵</div>
-                        <h3>음악 활동</h3>
-                        <p>노래와 율동으로 리듬감과 사회성을 함께 발달시켜요</p>
-                    </div>
-                    <div class="program-card">
-                        <div class="program-emoji">🌿</div>
-                        <h3>자연 탐구</h3>
-                        <p>텃밭 가꾸기, 자연 관찰 등 생태 감수성을 길러요</p>
-                    </div>
-                    <div class="program-card">
-                        <div class="program-emoji">📖</div>
-                        <h3>동화 구연</h3>
-                        <p>그림책을 통해 언어 발달과 상상력을 자극해요</p>
-                    </div>
-                    <div class="program-card">
-                        <div class="program-emoji">🤸</div>
-                        <h3>체육 활동</h3>
-                        <p>신체 발달에 맞는 운동으로 건강한 몸과 마음을 만들어요</p>
-                    </div>
-                    <div class="program-card">
-                        <div class="program-emoji">🧩</div>
-                        <h3>수학 놀이</h3>
-                        <p>놀이를 통해 수학적 사고력과 문제 해결력을 키워요</p>
-                    </div>
+                <div class="programs-grid" id="programsGrid">
+                    <!-- JS에서 동적 생성 -->
                 </div>
             </div>
         </div>
@@ -180,7 +111,7 @@
             </div>
         </div>
 
-        <!-- 연락처 / 오시는 길 -->
+        <!-- 연락처 / 오시는 길 (동적 생성) -->
         <div class="section contact-section">
             <div class="container">
                 <h2 class="section-title">
@@ -188,43 +119,8 @@
                     오시는 길
                     <span class="title-deco">📍</span>
                 </h2>
-                <div class="contact-grid">
-                    <div class="contact-info">
-                        <div class="contact-item">
-                            <div class="contact-icon"><i class="fas fa-map-marker-alt"></i></div>
-                            <div>
-                                <strong>주소</strong>
-                                <p>서울시 OO구 OO로 123</p>
-                            </div>
-                        </div>
-                        <div class="contact-item">
-                            <div class="contact-icon"><i class="fas fa-phone"></i></div>
-                            <div>
-                                <strong>전화</strong>
-                                <p>02-1234-5678</p>
-                            </div>
-                        </div>
-                        <div class="contact-item">
-                            <div class="contact-icon"><i class="fas fa-clock"></i></div>
-                            <div>
-                                <strong>운영시간</strong>
-                                <p>평일 07:30 ~ 19:30</p>
-                            </div>
-                        </div>
-                        <div class="contact-item">
-                            <div class="contact-icon"><i class="fas fa-envelope"></i></div>
-                            <div>
-                                <strong>이메일</strong>
-                                <p>jamjaemi@example.com</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="contact-map">
-                        <div class="map-placeholder">
-                            <i class="fas fa-map-marked-alt"></i>
-                            <p>지도 영역<br><small>실제 운영 시 카카오맵/네이버맵 연동</small></p>
-                        </div>
-                    </div>
+                <div class="contact-grid" id="contactGrid">
+                    <!-- JS에서 동적 생성 -->
                 </div>
             </div>
         </div>
@@ -254,14 +150,9 @@
             <p>잼재미 어린이집의 소중한 순간들</p>
         </div>
         <div class="container">
-            <!-- 행사 필터 -->
-            <div class="event-filters">
-                <button class="filter-btn active" onclick="filterEvents('all')">전체</button>
-                <button class="filter-btn" onclick="filterEvents('봄')">🌸 봄</button>
-                <button class="filter-btn" onclick="filterEvents('여름')">☀️ 여름</button>
-                <button class="filter-btn" onclick="filterEvents('가을')">🍂 가을</button>
-                <button class="filter-btn" onclick="filterEvents('겨울')">❄️ 겨울</button>
-                <button class="filter-btn" onclick="filterEvents('특별')">🎉 특별행사</button>
+            <!-- 행사 필터 (동적 생성) -->
+            <div class="event-filters" id="eventFilters">
+                <!-- JS에서 카테고리 기반으로 동적 생성 -->
             </div>
 
             <!-- 행사 이력 타임라인 -->
@@ -358,7 +249,10 @@
         <!-- 관리자 대시보드 -->
         <div class="container" id="adminDashboard" style="display:none;">
             <div class="admin-tabs">
-                <button class="admin-tab active" onclick="switchAdminTab('event-manage')">
+                <button class="admin-tab active" onclick="switchAdminTab('home-manage')">
+                    <i class="fas fa-home"></i> 홈 관리
+                </button>
+                <button class="admin-tab" onclick="switchAdminTab('event-manage')">
                     <i class="fas fa-calendar-plus"></i> 행사 관리
                 </button>
                 <button class="admin-tab" onclick="switchAdminTab('photo-manage')">
@@ -370,13 +264,85 @@
                 <button class="admin-tab" onclick="switchAdminTab('about-manage')">
                     <i class="fas fa-info-circle"></i> 소개 관리
                 </button>
+                <button class="admin-tab" onclick="switchAdminTab('category-manage')">
+                    <i class="fas fa-tags"></i> 카테고리
+                </button>
                 <button class="admin-tab" onclick="switchAdminTab('music-manage')">
                     <i class="fas fa-music"></i> 음악 관리
                 </button>
             </div>
 
+            <!-- 홈 화면 관리 -->
+            <div id="admin-home-manage" class="admin-content active">
+                <div class="admin-section">
+                    <h3><i class="fas fa-star"></i> 히어로 영역 관리</h3>
+                    <div class="form-group">
+                        <label>메인 타이틀 (첫째 줄)</label>
+                        <input type="text" id="adminHeroTitle1" placeholder="예: 아이들의 꿈이">
+                    </div>
+                    <div class="form-group">
+                        <label>메인 타이틀 (둘째 줄 · 강조)</label>
+                        <input type="text" id="adminHeroTitle2" placeholder="예: 무럭무럭 자라는 곳">
+                    </div>
+                    <div class="form-group">
+                        <label>부제목</label>
+                        <textarea id="adminHeroSubtitle" rows="2" placeholder="예: 잼재미 어린이집에서 사랑과 배움으로..."></textarea>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-heart"></i> 특징 카드 관리</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">홈 화면의 "특별한 이유" 섹션 카드 (최대 6개)</p>
+                    <div id="adminFeaturesEditor">
+                        <!-- JS 동적 생성 -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="addFeatureCard()" style="margin-top:0.75rem;">
+                        <i class="fas fa-plus"></i> 카드 추가
+                    </button>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-graduation-cap"></i> 교육 프로그램 관리</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">홈 화면의 "교육 프로그램" 섹션 (최대 8개)</p>
+                    <div id="adminProgramsEditor">
+                        <!-- JS 동적 생성 -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="addProgramCard()" style="margin-top:0.75rem;">
+                        <i class="fas fa-plus"></i> 프로그램 추가
+                    </button>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-map-marker-alt"></i> 오시는 길 · 연락처 관리</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>주소</label>
+                            <input type="text" id="adminAddress" placeholder="예: 서울시 OO구 OO로 123">
+                        </div>
+                        <div class="form-group">
+                            <label>전화번호</label>
+                            <input type="text" id="adminPhone" placeholder="예: 02-1234-5678">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>운영시간</label>
+                            <input type="text" id="adminHours" placeholder="예: 평일 07:30 ~ 19:30">
+                        </div>
+                        <div class="form-group">
+                            <label>이메일</label>
+                            <input type="text" id="adminEmail" placeholder="예: jamjaemi@example.com">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg" onclick="saveHomeData()" style="margin-top:1rem;">
+                    <i class="fas fa-save"></i> 홈 화면 저장
+                </button>
+            </div>
+
             <!-- 행사 관리 -->
-            <div id="admin-event-manage" class="admin-content active">
+            <div id="admin-event-manage" class="admin-content">
                 <div class="admin-section">
                     <h3><i class="fas fa-plus-circle"></i> 새 행사 등록</h3>
                     <div class="form-row">
@@ -393,11 +359,7 @@
                         <div class="form-group">
                             <label>카테고리</label>
                             <select id="eventCategory">
-                                <option value="봄">🌸 봄 행사</option>
-                                <option value="여름">☀️ 여름 행사</option>
-                                <option value="가을">🍂 가을 행사</option>
-                                <option value="겨울">❄️ 겨울 행사</option>
-                                <option value="특별">🎉 특별 행사</option>
+                                <!-- JS에서 동적 생성 -->
                             </select>
                         </div>
                         <div class="form-group">
@@ -562,9 +524,59 @@
                     </div>
                 </div>
 
+                <div class="admin-section">
+                    <h3><i class="fas fa-users"></i> 반 구성 관리</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">이모지 · 반 이름 · 연령을 수정하세요 (최대 8개)</p>
+                    <div id="adminClassEditor">
+                        <!-- JS 동적 생성 -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="addClassItem()" style="margin-top:0.75rem;">
+                        <i class="fas fa-plus"></i> 반 추가
+                    </button>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-clock"></i> 하루 일과 관리</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">시간 · 활동 내용을 수정하세요</p>
+                    <div id="adminDailyScheduleEditor">
+                        <!-- JS 동적 생성 -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="addDailyScheduleItem()" style="margin-top:0.75rem;">
+                        <i class="fas fa-plus"></i> 일과 추가
+                    </button>
+                </div>
+
+                <div class="admin-section">
+                    <h3><i class="fas fa-building"></i> 시설 안내 관리</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">아이콘(FontAwesome 클래스) · 시설명을 수정하세요</p>
+                    <div id="adminFacilityEditor">
+                        <!-- JS 동적 생성 -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="addFacilityItem()" style="margin-top:0.75rem;">
+                        <i class="fas fa-plus"></i> 시설 추가
+                    </button>
+                </div>
+
                 <button class="btn btn-primary btn-lg" onclick="saveAboutData()" style="margin-top:1rem;">
                     <i class="fas fa-save"></i> 소개 정보 저장
                 </button>
+            </div>
+
+            <!-- 카테고리 관리 -->
+            <div id="admin-category-manage" class="admin-content">
+                <div class="admin-section">
+                    <h3><i class="fas fa-tags"></i> 행사 카테고리 관리</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">행사 등록 시 선택할 수 있는 카테고리를 추가/수정/삭제합니다</p>
+                    <div id="categoryEditor">
+                        <!-- JS 동적 생성 -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="addCategory()" style="margin-top:0.75rem;">
+                        <i class="fas fa-plus"></i> 카테고리 추가
+                    </button>
+                    <button class="btn btn-primary" onclick="saveCategories()" style="margin-top:1rem;">
+                        <i class="fas fa-save"></i> 카테고리 저장
+                    </button>
+                </div>
             </div>
 
             <!-- 음악 관리 -->
@@ -626,6 +638,9 @@
 
     <!-- 토스트 알림 -->
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Kakao Map SDK -->
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=KAKAO_APP_KEY&libraries=services&autoload=false"></script>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
