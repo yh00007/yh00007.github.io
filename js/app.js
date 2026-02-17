@@ -3,7 +3,25 @@
    ============================ */
 
 // ============================
-// 데이터 관리 (localStorage)
+// Firebase 초기화
+// ============================
+const firebaseConfig = {
+    apiKey: "AIzaSyD4z9INQCui_o1L28cAH3vMbLM8fpbOH_k",
+    authDomain: "jamjaemi-daycare.firebaseapp.com",
+    projectId: "jamjaemi-daycare",
+    storageBucket: "jamjaemi-daycare.firebasestorage.app",
+    messagingSenderId: "551568726005",
+    appId: "1:551568726005:web:2f4bfa45284e403d20f2bc",
+    databaseURL: "https://jamjaemi-daycare-default-rtdb.firebaseio.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+const firebaseDB = firebase.database();
+let firebaseReady = false;
+let syncInProgress = false;
+
+// ============================
+// 데이터 관리 (localStorage + Firebase 동기화)
 // ============================
 const DB = {
     get(key, fallback = []) {
@@ -14,11 +32,122 @@ const DB = {
     },
     set(key, value) {
         localStorage.setItem('jamjaemi_' + key, JSON.stringify(value));
+        // Firebase에도 동기화
+        if (firebaseReady && !syncInProgress) {
+            firebaseDB.ref('jamjaemi/' + key).set(value).catch(err => {
+                console.warn('Firebase 저장 실패:', err);
+            });
+        }
     },
     remove(key) {
         localStorage.removeItem('jamjaemi_' + key);
+        if (firebaseReady && !syncInProgress) {
+            firebaseDB.ref('jamjaemi/' + key).remove().catch(err => {
+                console.warn('Firebase 삭제 실패:', err);
+            });
+        }
     }
 };
+
+// Firebase에서 초기 데이터 로드 + 실시간 리스너
+function initFirebaseSync() {
+    const ref = firebaseDB.ref('jamjaemi');
+
+    // 전체 데이터 한번 가져오기
+    ref.once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (data) {
+            syncInProgress = true;
+            // Firebase 데이터를 localStorage에 캐시
+            Object.keys(data).forEach(key => {
+                localStorage.setItem('jamjaemi_' + key, JSON.stringify(data[key]));
+            });
+            syncInProgress = false;
+            console.log('Firebase → localStorage 동기화 완료');
+            // 페이지 새로고침 (데이터 적용)
+            refreshCurrentPage();
+        } else {
+            // Firebase에 데이터가 없으면 localStorage 데이터를 Firebase에 업로드
+            uploadAllToFirebase();
+        }
+        firebaseReady = true;
+    }).catch(err => {
+        console.warn('Firebase 연결 실패, 로컬 모드로 동작:', err);
+        firebaseReady = false;
+    });
+
+    // 실시간 변경 리스너
+    ref.on('value', snapshot => {
+        if (!firebaseReady) return;
+        const data = snapshot.val();
+        if (data) {
+            syncInProgress = true;
+            Object.keys(data).forEach(key => {
+                localStorage.setItem('jamjaemi_' + key, JSON.stringify(data[key]));
+            });
+            syncInProgress = false;
+            refreshCurrentPage();
+        }
+    });
+}
+
+function uploadAllToFirebase() {
+    const keys = ['events', 'schedules', 'yearlyThemes', 'aboutData', 'musicData', 'initialized'];
+    const data = {};
+    keys.forEach(key => {
+        const val = DB.get(key, null);
+        if (val !== null) {
+            data[key] = val;
+        }
+    });
+    if (Object.keys(data).length > 0) {
+        firebaseDB.ref('jamjaemi').set(data).then(() => {
+            console.log('localStorage → Firebase 업로드 완료');
+        }).catch(err => console.warn('Firebase 업로드 실패:', err));
+    }
+}
+
+function refreshCurrentPage() {
+    if (currentPage === 'home') loadRecentEvents();
+    if (currentPage === 'about') loadAboutPage();
+    if (currentPage === 'events') loadEventsTimeline();
+    if (currentPage === 'schedule') { loadYearlySchedule(); loadMonthlyCalendar(); }
+}
+
+// ============================
+// 이미지 압축 함수
+// ============================
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // 리사이즈
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
 // ============================
 // 초기 데이터 (샘플)
@@ -74,7 +203,6 @@ function initSampleData() {
         }
     };
 
-    // 소개 페이지 기본 데이터
     const defaultAboutData = {
         directorName: '김사랑',
         directorRole: '원장',
@@ -100,7 +228,6 @@ function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-' + page).classList.add('active');
 
-    // 네비 활성화
     document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
     const links = document.querySelectorAll('.nav-links a');
     links.forEach(a => {
@@ -109,13 +236,9 @@ function showPage(page) {
         }
     });
 
-    // 모바일 메뉴 닫기
     document.getElementById('navLinks').classList.remove('show');
-
-    // 맨 위로 스크롤
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // 페이지별 초기화
     if (page === 'home') loadRecentEvents();
     if (page === 'about') loadAboutPage();
     if (page === 'events') loadEventsTimeline();
@@ -140,7 +263,6 @@ function loadRecentEvents() {
     }
 
     const sorted = [...events].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3);
-
     const categoryEmojis = { '봄': '🌸', '여름': '☀️', '가을': '🍂', '겨울': '❄️', '특별': '🎉' };
 
     grid.innerHTML = sorted.map(event => {
@@ -175,7 +297,6 @@ function loadAboutPage() {
     const directorCardEl = document.getElementById('directorCard');
     const aboutContentEl = document.getElementById('aboutContent');
 
-    // 원장 소개 카드 렌더링
     const directorName = aboutData.directorName || '';
     const directorRole = aboutData.directorRole || '';
     const directorGreeting = aboutData.directorGreeting || '';
@@ -202,8 +323,7 @@ function loadAboutPage() {
         directorCardEl.innerHTML = '';
     }
 
-    // 교육 철학 및 기타 소개 콘텐츠 렌더링
-    const philosophy = aboutData.educationPhilosophy || '잼재미 어린이집은 "놀이가 곧 배움"이라는 철학 아래, 아이들이 자유롭게 탐색하고 스스로 배워가는 환경을 만듭니다. 누리과정을 바탕으로 한 통합적 놀이 중심 교육을 실천합니다.';
+    const philosophy = aboutData.educationPhilosophy || '잼재미 어린이집은 "놀이가 곧 배움"이라는 철학 아래, 아이들이 자유롭게 탐색하고 스스로 배워가는 환경을 만듭니다.';
 
     aboutContentEl.innerHTML = `
         <div class="about-card mission-card">
@@ -215,31 +335,11 @@ function loadAboutPage() {
             <div class="about-card-icon">👨‍👩‍👧‍👦</div>
             <h3>반 구성</h3>
             <div class="class-list">
-                <div class="class-item">
-                    <span class="class-emoji">🐣</span>
-                    <span class="class-name">병아리반</span>
-                    <span class="class-age">만 1세</span>
-                </div>
-                <div class="class-item">
-                    <span class="class-emoji">🐰</span>
-                    <span class="class-name">토끼반</span>
-                    <span class="class-age">만 2세</span>
-                </div>
-                <div class="class-item">
-                    <span class="class-emoji">🦊</span>
-                    <span class="class-name">여우반</span>
-                    <span class="class-age">만 3세</span>
-                </div>
-                <div class="class-item">
-                    <span class="class-emoji">🦁</span>
-                    <span class="class-name">사자반</span>
-                    <span class="class-age">만 4세</span>
-                </div>
-                <div class="class-item">
-                    <span class="class-emoji">🐘</span>
-                    <span class="class-name">코끼리반</span>
-                    <span class="class-age">만 5세</span>
-                </div>
+                <div class="class-item"><span class="class-emoji">🐣</span><span class="class-name">병아리반</span><span class="class-age">만 1세</span></div>
+                <div class="class-item"><span class="class-emoji">🐰</span><span class="class-name">토끼반</span><span class="class-age">만 2세</span></div>
+                <div class="class-item"><span class="class-emoji">🦊</span><span class="class-name">여우반</span><span class="class-age">만 3세</span></div>
+                <div class="class-item"><span class="class-emoji">🦁</span><span class="class-name">사자반</span><span class="class-age">만 4세</span></div>
+                <div class="class-item"><span class="class-emoji">🐘</span><span class="class-name">코끼리반</span><span class="class-age">만 5세</span></div>
             </div>
         </div>
         <div class="about-card">
@@ -277,7 +377,6 @@ function loadAboutPage() {
 // ============================
 function loadAboutAdminForm() {
     const aboutData = DB.get('aboutData', {});
-
     const nameInput = document.getElementById('adminDirectorName');
     const roleInput = document.getElementById('adminDirectorRole');
     const greetingInput = document.getElementById('adminDirectorGreeting');
@@ -289,7 +388,6 @@ function loadAboutAdminForm() {
     if (greetingInput) greetingInput.value = aboutData.directorGreeting || '';
     if (philosophyInput) philosophyInput.value = aboutData.educationPhilosophy || '';
 
-    // 사진 미리보기 업데이트
     if (photoPreview) {
         if (aboutData.directorPhoto) {
             photoPreview.innerHTML = `<img src="${aboutData.directorPhoto}" alt="원장 사진">`;
@@ -307,7 +405,6 @@ function saveAboutData() {
         directorPhoto: DB.get('aboutData', {}).directorPhoto || '',
         educationPhilosophy: document.getElementById('adminEducationPhilosophy').value.trim()
     };
-
     DB.set('aboutData', aboutData);
     showToast('소개 정보가 저장되었습니다', 'success');
 }
@@ -320,30 +417,23 @@ function handleDirectorPhotoUpload(files) {
         showToast('이미지 파일만 업로드할 수 있습니다', 'error');
         return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
         showToast('파일 크기는 5MB 이하여야 합니다', 'error');
         return;
     }
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const dataUrl = e.target.result;
+    compressImage(file, 400, 0.8).then(dataUrl => {
         const aboutData = DB.get('aboutData', {});
         aboutData.directorPhoto = dataUrl;
         DB.set('aboutData', aboutData);
 
-        // 미리보기 업데이트
         const photoPreview = document.getElementById('directorPhotoPreview');
         if (photoPreview) {
             photoPreview.innerHTML = `<img src="${dataUrl}" alt="원장 사진">`;
         }
-
         showToast('원장 사진이 업로드되었습니다', 'success');
-    };
-    reader.readAsDataURL(file);
+    }).catch(() => showToast('사진 업로드 실패', 'error'));
 
-    // 파일 입력 리셋
     document.getElementById('directorPhotoInput').value = '';
 }
 
@@ -356,7 +446,6 @@ function removeDirectorPhoto() {
     if (photoPreview) {
         photoPreview.innerHTML = `<i class="fas fa-user-circle"></i><span>사진 없음</span>`;
     }
-
     showToast('원장 사진이 삭제되었습니다', 'success');
 }
 
@@ -371,16 +460,11 @@ function initMusicPlayer() {
     const audio = document.getElementById('bgMusic');
 
     if (musicData && musicData.dataUrl) {
-        // 음악이 있으면 플레이어 표시
         audio.src = musicData.dataUrl;
         audio.volume = 0.5;
         player.style.display = 'flex';
-
-        // 제목 표시
         const titleEl = document.getElementById('musicPlayerTitle');
-        if (titleEl) {
-            titleEl.textContent = musicData.fileName || '배경 음악';
-        }
+        if (titleEl) titleEl.textContent = musicData.fileName || '배경 음악';
     } else {
         player.style.display = 'none';
     }
@@ -415,7 +499,6 @@ function setVolume(value) {
     audio.volume = value / 100;
 }
 
-// 관리자 - 음악 업로드
 function handleMusicUpload(files) {
     if (!files || files.length === 0) return;
     const file = files[0];
@@ -424,7 +507,6 @@ function handleMusicUpload(files) {
         showToast('오디오 파일만 업로드할 수 있습니다', 'error');
         return;
     }
-
     if (file.size > 15 * 1024 * 1024) {
         showToast('파일 크기는 15MB 이하여야 합니다', 'error');
         return;
@@ -441,7 +523,6 @@ function handleMusicUpload(files) {
             fileSize: file.size,
             uploadDate: new Date().toISOString()
         };
-
         try {
             DB.set('musicData', musicData);
             initMusicPlayer();
@@ -449,12 +530,10 @@ function handleMusicUpload(files) {
             showToast(`"${file.name}" 음악이 업로드되었습니다`, 'success');
         } catch (err) {
             showToast('파일이 너무 큽니다. 더 작은 파일을 업로드해주세요.', 'error');
-            console.error('localStorage 저장 실패:', err);
+            console.error('저장 실패:', err);
         }
     };
     reader.readAsDataURL(file);
-
-    // 파일 입력 리셋
     document.getElementById('musicFileInput').value = '';
 }
 
@@ -472,7 +551,6 @@ function deleteMusic() {
     toggleBtn.classList.remove('playing');
 
     DB.remove('musicData');
-
     document.getElementById('musicPlayer').style.display = 'none';
     loadMusicAdminStatus();
     showToast('배경 음악이 삭제되었습니다', 'success');
@@ -488,11 +566,8 @@ function loadMusicAdminStatus() {
     if (musicData && musicData.dataUrl) {
         const sizeMB = (musicData.fileSize / (1024 * 1024)).toFixed(2);
         const uploadDate = musicData.uploadDate ? formatDate(musicData.uploadDate.split('T')[0]) : '알 수 없음';
-
         statusCard.innerHTML = `
-            <div class="music-status-icon active">
-                <i class="fas fa-music"></i>
-            </div>
+            <div class="music-status-icon active"><i class="fas fa-music"></i></div>
             <div class="music-status-info">
                 <h4>현재 등록된 음악</h4>
                 <p><strong>${musicData.fileName || '알 수 없는 파일'}</strong></p>
@@ -502,9 +577,7 @@ function loadMusicAdminStatus() {
         if (deleteBtn) deleteBtn.style.display = 'inline-flex';
     } else {
         statusCard.innerHTML = `
-            <div class="music-status-icon inactive">
-                <i class="fas fa-volume-mute"></i>
-            </div>
+            <div class="music-status-icon inactive"><i class="fas fa-volume-mute"></i></div>
             <div class="music-status-info">
                 <h4>등록된 음악 없음</h4>
                 <p>아래에서 배경 음악 파일을 업로드해주세요.</p>
@@ -539,7 +612,6 @@ function loadEventsTimeline() {
     timeline.innerHTML = filtered.map(event => {
         const emoji = categoryEmojis[event.category] || '📸';
         const photos = event.photos || [];
-
         return `
             <div class="event-timeline-item" data-category="${event.category}">
                 <div class="event-timeline-header" onclick="toggleEventBody(this)">
@@ -599,7 +671,6 @@ function openPhotoModal(eventId, photoIndex) {
 
     modalPhotos = ev.photos;
     modalPhotoIndex = photoIndex;
-
     updatePhotoModal();
     document.getElementById('photoModal').classList.add('show');
     document.body.style.overflow = 'hidden';
@@ -608,7 +679,6 @@ function openPhotoModal(eventId, photoIndex) {
 function updatePhotoModal() {
     document.getElementById('modalPhoto').src = modalPhotos[modalPhotoIndex];
     document.getElementById('photoInfo').textContent = `사진 ${modalPhotoIndex + 1} / ${modalPhotos.length}`;
-
     const thumbnails = document.getElementById('photoThumbnails');
     thumbnails.innerHTML = modalPhotos.map((p, i) =>
         `<img src="${p}" class="${i === modalPhotoIndex ? 'active' : ''}" onclick="modalPhotoIndex=${i};updatePhotoModal()">`
@@ -630,7 +700,6 @@ function closePhotoModal() {
     document.body.style.overflow = '';
 }
 
-// ESC로 모달 닫기
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closePhotoModal();
     if (e.key === 'ArrowLeft') prevPhoto();
@@ -651,11 +720,6 @@ function loadYearlySchedule() {
     const grid = document.getElementById('yearlyGrid');
 
     const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-    const monthColors = [
-        '#E3F2FD', '#F3E5F5', '#E8F5E9', '#FFF3E0',
-        '#FCE4EC', '#E0F7FA', '#FFF9C4', '#E8EAF6',
-        '#FBE9E7', '#EFEBE9', '#F3E5F5', '#E3F2FD'
-    ];
     const dotColors = [
         '#1976D2', '#7B1FA2', '#388E3C', '#F57C00',
         '#C62828', '#00838F', '#F9A825', '#283593',
@@ -722,7 +786,6 @@ function loadMonthlyCalendar() {
         return d.getFullYear() === year && d.getMonth() === month;
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // 달력 생성
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
@@ -740,12 +803,10 @@ function loadMonthlyCalendar() {
         <div class="calendar-body">
     `;
 
-    // 이전 달
     for (let i = firstDay - 1; i >= 0; i--) {
         calendarHTML += `<div class="calendar-day other-month"><div class="day-number">${daysInPrevMonth - i}</div></div>`;
     }
 
-    // 현재 달
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayOfWeek = new Date(year, month, day).getDay();
@@ -767,7 +828,6 @@ function loadMonthlyCalendar() {
         `;
     }
 
-    // 다음 달
     const totalCells = firstDay + daysInMonth;
     const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
     for (let i = 1; i <= remaining; i++) {
@@ -777,7 +837,6 @@ function loadMonthlyCalendar() {
     calendarHTML += '</div>';
     document.getElementById('monthlyCalendar').innerHTML = calendarHTML;
 
-    // 일정 리스트
     const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
     const eventsList = document.getElementById('monthEventsList');
 
@@ -815,10 +874,8 @@ function changeMonth(delta) {
 function switchScheduleTab(tab) {
     document.querySelectorAll('.schedule-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
     document.getElementById(tab + 'Schedule').classList.add('active');
     event && event.target && event.target.classList.add('active');
-
     if (tab === 'yearly') loadYearlySchedule();
     if (tab === 'monthly') loadMonthlyCalendar();
 }
@@ -826,7 +883,7 @@ function switchScheduleTab(tab) {
 // ============================
 // 관리자 - 로그인
 // ============================
-const ADMIN_PW = 'admin1234';
+const ADMIN_PW = '2850';
 
 function adminLoginCheck() {
     const pw = document.getElementById('adminPassword').value;
@@ -848,6 +905,7 @@ function loadAdminData() {
     loadYearlyThemeEditor();
     loadAboutAdminForm();
     loadMusicAdminStatus();
+    loadStorageSummary();
 }
 
 function switchAdminTab(tab) {
@@ -859,9 +917,92 @@ function switchAdminTab(tab) {
         if (btn) btn.classList.add('active');
     }
 
-    // 탭 전환 시 데이터 새로고침
     if (tab === 'about-manage') loadAboutAdminForm();
     if (tab === 'music-manage') loadMusicAdminStatus();
+    if (tab === 'photo-manage') { loadAdminPhotoGrid(); loadStorageSummary(); }
+}
+
+// ============================
+// 관리자 - 사진 용량 관리 UI
+// ============================
+function loadStorageSummary() {
+    const container = document.getElementById('storageSummaryContainer');
+    if (!container) return;
+
+    const events = DB.get('events');
+    let totalPhotos = 0;
+    let totalBytes = 0;
+    const eventBreakdown = [];
+
+    events.forEach(ev => {
+        const photos = ev.photos || [];
+        let eventBytes = 0;
+        photos.forEach(p => {
+            // base64 문자열 크기 ≈ 실제 바이트의 4/3
+            eventBytes += Math.round((p.length || 0) * 3 / 4);
+        });
+        totalPhotos += photos.length;
+        totalBytes += eventBytes;
+        if (photos.length > 0) {
+            eventBreakdown.push({
+                name: ev.name,
+                count: photos.length,
+                bytes: eventBytes
+            });
+        }
+    });
+
+    const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+    const limitMB = 1024; // Firebase 무료 1GB
+    const usagePercent = Math.min((totalBytes / (limitMB * 1024 * 1024)) * 100, 100);
+    const isWarning = usagePercent > 70;
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + 'B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + 'MB';
+    }
+
+    container.innerHTML = `
+        <div class="storage-summary">
+            <h3><i class="fas fa-database"></i> 저장 용량 현황</h3>
+            <div class="storage-overview">
+                <div class="storage-stat">
+                    <span class="stat-value">${events.length}</span>
+                    <span class="stat-label">전체 행사</span>
+                </div>
+                <div class="storage-stat">
+                    <span class="stat-value">${totalPhotos}</span>
+                    <span class="stat-label">전체 사진</span>
+                </div>
+                <div class="storage-stat">
+                    <span class="stat-value">${totalMB}MB</span>
+                    <span class="stat-label">사용 용량</span>
+                </div>
+            </div>
+            <div class="storage-progress-wrap">
+                <div class="storage-progress-label">
+                    <span>사용량 ${totalMB}MB / ${limitMB}MB</span>
+                    <span>${usagePercent.toFixed(1)}%</span>
+                </div>
+                <div class="storage-progress-bar">
+                    <div class="storage-progress-fill ${isWarning ? 'warning' : ''}" style="width:${usagePercent}%"></div>
+                </div>
+            </div>
+            ${eventBreakdown.length > 0 ? `
+                <h4 style="font-size:0.9rem;color:var(--text-light);margin-bottom:0.5rem;">행사별 용량</h4>
+                <div class="storage-breakdown">
+                    ${eventBreakdown.sort((a, b) => b.bytes - a.bytes).map(item => `
+                        <div class="storage-breakdown-item">
+                            <span class="event-name">${item.name}</span>
+                            <span class="photo-count">${item.count}장</span>
+                            <span class="photo-size">${formatSize(item.bytes)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // ============================
@@ -880,15 +1021,10 @@ function addEvent() {
     }
 
     const events = DB.get('events');
-    const newEvent = {
-        id: Date.now(),
-        name, date, category, location, desc,
-        photos: []
-    };
+    const newEvent = { id: Date.now(), name, date, category, location, desc, photos: [] };
     events.push(newEvent);
     DB.set('events', events);
 
-    // 폼 초기화
     document.getElementById('eventName').value = '';
     document.getElementById('eventDate').value = '';
     document.getElementById('eventLocation').value = '';
@@ -934,6 +1070,7 @@ function deleteEvent(id) {
     loadEventAdminList();
     loadPhotoEventSelect();
     loadAdminPhotoGrid();
+    loadStorageSummary();
     showToast('행사가 삭제되었습니다', 'success');
 }
 
@@ -942,12 +1079,10 @@ function deleteEvent(id) {
 // ============================
 function loadPhotoEventSelect() {
     const events = DB.get('events').sort((a, b) => new Date(b.date) - new Date(a.date));
-
     const select1 = document.getElementById('photoEventSelect');
     const select2 = document.getElementById('photoFilterSelect');
 
     const options = events.map(e => `<option value="${e.id}">${e.name} (${formatDate(e.date)})</option>`).join('');
-
     select1.innerHTML = '<option value="">행사를 선택하세요</option>' + options;
     select2.innerHTML = '<option value="all">전체 보기</option>' + options;
 }
@@ -960,40 +1095,47 @@ function handlePhotoUpload(files) {
     }
 
     const preview = document.getElementById('uploadPreview');
+    let processed = 0;
+    const total = files.length;
+
+    showToast(`${total}개 사진 압축 및 업로드 중...`, 'success');
 
     Array.from(files).forEach(file => {
-        if (!file.type.startsWith('image/')) return;
+        if (!file.type.startsWith('image/')) { processed++; return; }
         if (file.size > 10 * 1024 * 1024) {
             showToast(`${file.name}이 10MB를 초과합니다`, 'error');
+            processed++;
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const dataUrl = e.target.result;
-
-            // 이벤트에 사진 추가
+        // 이미지 압축 후 저장
+        compressImage(file, 800, 0.7).then(compressedDataUrl => {
             const events = DB.get('events');
             const ev = events.find(ev => ev.id === eventId);
             if (ev) {
                 if (!ev.photos) ev.photos = [];
-                ev.photos.push(dataUrl);
+                ev.photos.push(compressedDataUrl);
                 DB.set('events', events);
             }
 
-            // 프리뷰
             const div = document.createElement('div');
             div.className = 'upload-preview-item';
-            div.innerHTML = `<img src="${dataUrl}" alt="uploaded"><button class="remove-btn" onclick="this.parentElement.remove()">×</button>`;
+            div.innerHTML = `<img src="${compressedDataUrl}" alt="uploaded"><button class="remove-btn" onclick="this.parentElement.remove()">×</button>`;
             preview.appendChild(div);
 
-            loadAdminPhotoGrid();
-            showToast('사진이 업로드되었습니다', 'success');
-        };
-        reader.readAsDataURL(file);
+            processed++;
+            if (processed >= total) {
+                loadAdminPhotoGrid();
+                loadStorageSummary();
+                loadEventAdminList();
+                showToast(`${total}개 사진이 업로드되었습니다`, 'success');
+            }
+        }).catch(err => {
+            console.error('압축 실패:', err);
+            processed++;
+        });
     });
 
-    // 파일 입력 리셋
     document.getElementById('photoInput').value = '';
 }
 
@@ -1042,6 +1184,7 @@ function deletePhoto(eventId, photoIndex) {
 
     loadAdminPhotoGrid();
     loadEventAdminList();
+    loadStorageSummary();
     showToast('사진이 삭제되었습니다', 'success');
 }
 
@@ -1076,12 +1219,9 @@ function addSchedule() {
     }
 
     const schedules = DB.get('schedules');
-    schedules.push({
-        id: Date.now(), name, date, type, theme, desc
-    });
+    schedules.push({ id: Date.now(), name, date, type, theme, desc });
     DB.set('schedules', schedules);
 
-    // 폼 초기화
     document.getElementById('scheduleName').value = '';
     document.getElementById('scheduleDate').value = '';
     document.getElementById('scheduleTheme').value = '';
@@ -1181,7 +1321,6 @@ function showToast(message, type = 'success') {
 
 // 스크롤 이벤트
 window.addEventListener('scroll', () => {
-    // 스크롤 탑 버튼
     const scrollBtn = document.getElementById('scrollTopBtn');
     if (window.scrollY > 300) {
         scrollBtn.classList.add('show');
@@ -1189,7 +1328,6 @@ window.addEventListener('scroll', () => {
         scrollBtn.classList.remove('show');
     }
 
-    // 네비바 그림자
     const navbar = document.getElementById('navbar');
     if (window.scrollY > 10) {
         navbar.classList.add('scrolled');
@@ -1224,7 +1362,6 @@ function createParticles() {
     }
 }
 
-// CSS 추가 (파티클 애니메이션)
 const particleStyle = document.createElement('style');
 particleStyle.textContent = `
     @keyframes particleFloat {
@@ -1244,4 +1381,6 @@ document.addEventListener('DOMContentLoaded', () => {
     createParticles();
     loadRecentEvents();
     initMusicPlayer();
+    // Firebase 동기화 시작
+    initFirebaseSync();
 });

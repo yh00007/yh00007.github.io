@@ -2039,6 +2039,124 @@ body {
     to { opacity: 0; transform: translateX(100%); }
 }
 
+/* === 저장 용량 요약 === */
+.storage-summary {
+    background: white;
+    border-radius: var(--radius);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 2px solid var(--border);
+}
+
+.storage-summary h3 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+}
+
+.storage-summary h3 i {
+    color: var(--primary);
+}
+
+.storage-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.storage-stat {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    text-align: center;
+}
+
+.storage-stat .stat-value {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--primary);
+    display: block;
+}
+
+.storage-stat .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+    display: block;
+}
+
+.storage-progress-wrap {
+    margin-bottom: 1.5rem;
+}
+
+.storage-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+.storage-progress-bar {
+    width: 100%;
+    height: 12px;
+    background: var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.storage-progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--secondary), var(--primary));
+    transition: width 0.5s ease;
+}
+
+.storage-progress-fill.warning {
+    background: linear-gradient(135deg, var(--orange), #e74c3c);
+}
+
+.storage-breakdown {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.storage-breakdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+
+.storage-breakdown-item:last-child {
+    border-bottom: none;
+}
+
+.storage-breakdown-item .event-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.storage-breakdown-item .photo-count {
+    color: var(--text-light);
+    margin: 0 1rem;
+    white-space: nowrap;
+}
+
+.storage-breakdown-item .photo-size {
+    color: var(--primary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 /* ============================================
    반응형 - 태블릿 (768px)
    ============================================ */
@@ -2057,7 +2175,7 @@ body {
         flex-direction: column;
         padding: 1rem;
         box-shadow: var(--shadow);
-        gap: 0;
+        gap: 0.25rem;
     }
 
     .nav-links.show {
@@ -2065,7 +2183,8 @@ body {
     }
 
     .nav-links a {
-        padding: 0.75rem 1rem;
+        padding: 1rem 1.25rem;
+        font-size: 1.1rem;
     }
 
     .title-line { font-size: 2rem; }
